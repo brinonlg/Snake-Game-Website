@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #game-container {
+      text-align: center;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      border: 1px solid #444;
+      background: #000;
+    }
+    #info {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game" width="510" height="560"></canvas>
+    <div id="info">
+      <div>Selection screen: LEFT/RIGHT to choose color, SPACE to start.</div>
+      <div>In game: Arrow keys or WASD to move, SPACE to go back after Game Over, M to toggle music.</div>
+    </div>
+  </div>
+
+  <script>
+    // ==== CONFIGURATION (mirrors your Python constants) ====
+    const GRID_SIZE = 17;          // 17x17 grid
+    const CELL_SIZE = 30;
+    const WIDTH = GRID_SIZE * CELL_SIZE;
+    const HEIGHT = GRID_SIZE * CELL_SIZE + 50; // extra space for score
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    // Directions (similar to your Direction Enum)
+    const Direction = {
+      UP:    { x:  0, y: -1 },
+      DOWN:  { x:  0, y:  1 },
+      LEFT:  { x: -1, y:  0 },
+      RIGHT: { x:  1, y:  0 }
+    };
+
+    // Power-up types (matches your PowerUpType Enum)
+    const POWERUP_TYPES = {
+      FOOD: "FOOD",
+      SPEED_UP: "SPEED_UP",
+      TELEPORT: "TELEPORT",
+      SLOW_DOWN: "SLOW_DOWN",
+      DOUBLE_GROWTH: "DOUBLE_GROWTH"
+    };
+
+    // Snake color schemes (mirroring SnakeColor class)
+    const SNAKE_COLORS = [
+      { name: "Classic Green", head: [0, 255, 0], body: [0, 200, 0] },
+      { name: "Ocean Blue",   head: [0, 150, 255], body: [0, 100, 200] },
+      { name: "Fire Red",     head: [255, 50, 50], body: [200, 0, 0] },
+      { name: "Royal Purple", head: [180, 0, 255], body: [120, 0, 180] },
+      { name: "Sunset Orange",head: [255, 165, 0], body: [200, 100, 0] },
+      { name: "Bubblegum Pink", head: [255, 192, 203], body: [255, 100, 150] },
+      { name: "Cyber Cyan",   head: [0, 255, 255], body: [0, 180, 180] },
+      { name: "Golden",       head: [255, 215, 0], body: [218, 165, 32] }
+    ];
+
+    // Colors
+    const COLORS = {
+      BLACK: [0, 0, 0],
+      WHITE: [255, 255, 255],
+      RED: [255, 0, 0],
+      GRAY: [50, 50, 50],
+      PURPLE: [128, 0, 128],
+      YELLOW: [255, 255, 0],
+      BLUE: [0, 0, 255],
+      LIGHT_GREEN: [144, 238, 144]
+    };
+
+    function rgb(arr) {
+      return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
+    }
+
+    // ==== GAME STATE ====
+    let inSelectionScreen = true;
+    let selectedColorIndex = 0;
+
+    let snake = [];
+    let direction = Direction.RIGHT;
+    let nextDirection = Direction.RIGHT;
+
+    let currentPowerup = POWERUP_TYPES.FOOD;
+    let powerupPos = null;
+
+    let score = 0;
+    const baseSpeed = 10;   // like self.base_speed
+    let currentSpeed = baseSpeed;
+    let speedBoostEndTime = 0;
+
+    let gameOver = false;
+
+    let lastStepTime = 0;
+
+    // Music
+    let bgMusic = null;
+    let musicLoaded = false;
+    let userInteracted = false; // needed for browser autoplay
+    try {
+      bgMusic = new Audio("background_music.mp3");
+      bgMusic.loop = true;
+      musicLoaded = true; // will still fail silently if file not found
+    } catch (e) {
+      musicLoaded = false;
+    }
+
+    function toggleMusic() {
+      if (!bgMusic || !musicLoaded) return;
+      if (bgMusic.paused) {
+        bgMusic.play().catch(() => {});
+      } else {
+        bgMusic.pause();
+      }
+    }
+
+    // ==== RANDOM HELPERS ====
+    function randomEmptyCell() {
+      while (true) {
+        const x = Math.floor(Math.random() * GRID_SIZE);
+        const y = Math.floor(Math.random() * GRID_SIZE);
+        if (!snake.some(seg => seg.x === x && seg.y === y)) {
+          return { x, y };
+        }
+      }
+    }
+
+    function spawnItem() {
+      powerupPos = randomEmptyCell();
+    }
+
+    function spawnNewPowerup() {
+      const r = Math.random();
+      if (r < 0.3) {
+        currentPowerup = POWERUP_TYPES.FOOD;
+      } else {
+        const powerups = [
+          POWERUP_TYPES.SPEED_UP,
+          POWERUP_TYPES.TELEPORT,
+          POWERUP_TYPES.SLOW_DOWN,
+          POWERUP_TYPES.DOUBLE_GROWTH
+        ];
+        currentPowerup = powerups[Math.floor(Math.random() * powerups.length)];
+      }
+      spawnItem();
+    }
+
+    function getPowerupColor() {
+      if (currentPowerup === POWERUP_TYPES.FOOD) return rgb(COLORS.RED);
+      if (currentPowerup === POWERUP_TYPES.SPEED_UP) return rgb(COLORS.PURPLE);
+      if (currentPowerup === POWERUP_TYPES.TELEPORT) return rgb(COLORS.LIGHT_GREEN);
+      if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) return rgb(COLORS.YELLOW);
+      if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) return rgb(COLORS.BLUE);
+      return rgb(COLORS.RED);
+    }
+
+    // ==== GAME SETUP ====
+    function startGame() {
+      const startX = Math.floor(GRID_SIZE / 2);
+      const startY = Math.floor(GRID_SIZE / 2);
+      snake = [
+        { x: startX, y: startY },
+        { x: startX - 1, y: startY },
+        { x: startX - 2, y: startY }
+      ];
+
+      direction = Direction.RIGHT;
+      nextDirection = Direction.RIGHT;
+      score = 0;
+      gameOver = false;
+      currentSpeed = baseSpeed;
+      speedBoostEndTime = 0;
+
+      currentPowerup = POWERUP_TYPES.FOOD;
+      spawnItem(); // first item is food
+
+      inSelectionScreen = false;
+      lastStepTime = performance.now();
+
+      if (bgMusic && musicLoaded && userInteracted) {
+        bgMusic.play().catch(() => {});
+        bgMusic.volume = 0.5;
+      }
+    }
+
+    function resetToSelectionScreen() {
+      inSelectionScreen = true;
+      gameOver = false;
+      selectedColorIndex = 0;
+    }
+
+    // ==== INPUT HANDLING ====
+    document.addEventListener("keydown", (e) => {
+      userInteracted = true;
+
+      // Selection screen
+      if (inSelectionScreen) {
+        if (e.key === "ArrowLeft") {
+          selectedColorIndex = (selectedColorIndex - 1 + SNAKE_COLORS.length) % SNAKE_COLORS.length;
+        } else if (e.key === "ArrowRight") {
+          selectedColorIndex = (selectedColorIndex + 1) % SNAKE_COLORS.length;
+        } else if (e.key === " " || e.code === "Space") {
+          startGame();
+        }
+        return;
+      }
+
+      // In-game keys
+      if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+        if (direction !== Direction.DOWN) nextDirection = Direction.UP;
+      } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+        if (direction !== Direction.UP) nextDirection = Direction.DOWN;
+      } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+        if (direction !== Direction.RIGHT) nextDirection = Direction.LEFT;
+      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+        if (direction !== Direction.LEFT) nextDirection = Direction.RIGHT;
+      } else if (e.key === "m" || e.key === "M") {
+        toggleMusic();
+      } else if ((e.key === " " || e.code === "Space") && gameOver) {
+        // After game over, go back to selection screen
+        resetToSelectionScreen();
+      }
+    });
+
+    // ==== GAME UPDATE ====
+    function updateGame() {
+      if (gameOver || inSelectionScreen) return;
+
+      const nowSec = performance.now() / 1000;
+      if (speedBoostEndTime > 0 && nowSec >= speedBoostEndTime) {
+        currentSpeed = baseSpeed;
+        speedBoostEndTime = 0;
+      }
+
+      direction = nextDirection;
+
+      const head = snake[0];
+      const newHead = {
+        x: head.x + direction.x,
+        y: head.y + direction.y
+      };
+
+      // Boundary collision
+      if (
+        newHead.x < 0 || newHead.x >= GRID_SIZE ||
+        newHead.y < 0 || newHead.y >= GRID_SIZE
+      ) {
+        gameOver = true;
+        if (bgMusic && musicLoaded) bgMusic.pause();
+        return;
+      }
+
+      // Self collision
+      if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
+        gameOver = true;
+        if (bgMusic && musicLoaded) bgMusic.pause();
+        return;
+      }
+
+      // Move snake
+      snake.unshift(newHead);
+
+      // Item eaten?
+      if (powerupPos && newHead.x === powerupPos.x && newHead.y === powerupPos.y) {
+        score += 1;
+
+        // Apply power-up effects (mirroring Python)
+        if (currentPowerup === POWERUP_TYPES.FOOD) {
+          // Just grow, do nothing special
+        } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
+          currentSpeed = baseSpeed + 2;
+          speedBoostEndTime = nowSec + 5;
+        } else if (currentPowerup === POWERUP_TYPES.TELEPORT) {
+          const newPos = randomEmptyCell();
+          snake[0] = newPos;
+        } else if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) {
+          currentSpeed = Math.max(5, baseSpeed - 2);
+          speedBoostEndTime = nowSec + 5;
+        } else if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) {
+          if (snake.length > 1) {
+            const tail = snake[snake.length - 1];
+            snake.push({ x: tail.x, y: tail.y });
+          }
+        }
+
+        spawnNewPowerup();
+      } else {
+        // Did not eat: remove tail
+        snake.pop();
+      }
+    }
+
+    // ==== DRAWING ====
+    function clearCanvas() {
+      ctx.fillStyle = rgb(COLORS.BLACK);
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+
+    function drawSelectionScreen() {
+      clearCanvas();
+
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.font = "32px sans-serif";
+      ctx.fillText("SELECT YOUR SNAKE", WIDTH / 2 - 180, 60);
+
+      ctx.font = "18px sans-serif";
+      ctx.fillStyle = rgb(COLORS.GRAY);
+      ctx.fillText("Use LEFT/RIGHT to choose", WIDTH / 2 - 150, 90);
+      ctx.fillText("Press SPACE to start", WIDTH / 2 - 120, 115);
+
+      const boxHeight = 40;
+      const spacingY = 70;
+      const perRow = 4;
+      const startY = 180;
+
+      SNAKE_COLORS.forEach((scheme, index) => {
+        const row = Math.floor(index / perRow);
+        const col = index % perRow;
+
+        const xBase = WIDTH / 2 - 220 + col * 130;
+        const yBase = startY + row * spacingY;
+
+        // Draw 3-segment preview
+        for (let i = 0; i < 3; i++) {
+          const rectX = xBase + i * 18;
+          const rectY = yBase;
+          const color = i === 0 ? scheme.head : scheme.body;
+          ctx.fillStyle = rgb(color);
+          ctx.fillRect(rectX, rectY, 16, boxHeight);
+        }
+
+        // Selection border
+        if (index === selectedColorIndex) {
+          ctx.strokeStyle = rgb(COLORS.WHITE);
+          ctx.lineWidth = 2;
+          ctx.strokeRect(xBase - 6, yBase - 6, 60, boxHeight + 12);
+        }
+
+        // Name text
+        ctx.font = "14px sans-serif";
+        ctx.fillStyle = rgb(COLORS.WHITE);
+        ctx.fillText(scheme.name, xBase - 10, yBase + boxHeight + 18);
+      });
+
+      // Selected info
+      ctx.font = "20px sans-serif";
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      const selectedName = SNAKE_COLORS[selectedColorIndex].name;
+      ctx.fillText("Selected: " + selectedName, WIDTH / 2 - 120, HEIGHT - 40);
+    }
+
+    function drawGame() {
+      clearCanvas();
+
+      // Draw grid
+      ctx.strokeStyle = rgb(COLORS.GRAY);
+      ctx.lineWidth = 1;
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      }
+
+      // Draw snake with selected colors
+      const colorScheme = SNAKE_COLORS[selectedColorIndex];
+      snake.forEach((seg, i) => {
+        const isHead = i === 0;
+        ctx.fillStyle = isHead ? rgb(colorScheme.head) : rgb(colorScheme.body);
+        ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      });
+
+      // Draw power-up / food
+      if (powerupPos) {
+        ctx.fillStyle = getPowerupColor();
+        ctx.fillRect(
+          powerupPos.x * CELL_SIZE,
+          powerupPos.y * CELL_SIZE,
+          CELL_SIZE,
+          CELL_SIZE
+        );
+      }
+
+      // Score
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.font = "20px sans-serif";
+      ctx.fillText("Score: " + score, 10, HEIGHT - 25);
+
+      // Speed indicator
+      if (speedBoostEndTime > 0) {
+        const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
+        const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
+        ctx.fillStyle = rgb(color);
+        ctx.font = "18px sans-serif";
+        ctx.fillText(msg, WIDTH / 2 - 70, 22);
+      }
+
+      // Music status
+      if (musicLoaded) {
+        ctx.fillStyle = rgb(COLORS.WHITE);
+        ctx.font = "14px sans-serif";
+        const text = bgMusic && !bgMusic.paused ? "Music: ON (M)" : "Music: OFF (M)";
+        ctx.fillText(text, WIDTH - 140, HEIGHT - 25);
+      }
+
+      // Game Over overlay
+      if (gameOver) {
+        ctx.fillStyle = rgb(COLORS.RED);
+        ctx.font = "36px sans-serif";
+        ctx.fillText("GAME OVER!", WIDTH / 2 - 110, HEIGHT / 2 - 10);
+
+        ctx.fillStyle = rgb(COLORS.WHITE);
+        ctx.font = "20px sans-serif";
+        ctx.fillText("Press SPACE to go back", WIDTH / 2 - 140, HEIGHT / 2 + 20);
+      }
+    }
+
+    function draw() {
+      if (inSelectionScreen) {
+        drawSelectionScreen();
+      } else {
+        drawGame();
+      }
+    }
+
+    // ==== MAIN LOOP ====
+    function loop(timestamp) {
+      if (!lastStepTime) lastStepTime = timestamp;
+
+      const deltaSec = (timestamp - lastStepTime) / 1000;
+      const stepInterval = 1 / currentSpeed;
+
+      if (!inSelectionScreen && !gameOver && deltaSec >= stepInterval) {
+        updateGame();
+        lastStepTime = timestamp;
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
