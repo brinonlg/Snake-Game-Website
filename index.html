@@ -7,94 +7,219 @@
     * {
       box-sizing: border-box;
     }
+
     body {
       margin: 0;
-      background: #000;
-      color: #fff;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #b39dff 0%, #7c4dff 40%, #4b2bb3 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 20px;
+      padding: 24px;
+      color: #111;
     }
+
+    /* White card that holds everything */
     #game-container {
       display: flex;
       gap: 30px;
       align-items: flex-start;
+      padding: 24px 28px;
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.7);
     }
+
     #canvas-section {
       text-align: center;
     }
+
     canvas {
       display: block;
       margin: 0 auto;
       border: 2px solid #444;
       background: #000;
     }
+
     #info {
       margin-top: 12px;
       font-size: 14px;
-      color: #ccc;
+      color: #444;
       line-height: 1.5;
     }
-    #legend {
-      background: #111;
-      border: 2px solid #444;
-      border-radius: 8px;
-      padding: 20px;
-      width: 250px;
+
+    /* Shared style for the side cards (legend + controls) */
+    .side-card {
+      background: #fdfdfd;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 16px 18px;
+      width: 230px;
+      color: #111;
+      font-size: 14px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
     }
-    #legend h2 {
-      margin: 0 0 15px 0;
-      font-size: 20px;
-      color: #fff;
-      border-bottom: 2px solid #444;
-      padding-bottom: 10px;
+
+    .side-card h2 {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+      color: #222;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 8px;
     }
+
+    /* Power-up legend-specific styles */
     .legend-item {
       display: flex;
       align-items: center;
-      margin-bottom: 12px;
-      font-size: 14px;
+      margin-bottom: 10px;
+      font-size: 13px;
     }
+
     .legend-color {
-      width: 24px;
-      height: 24px;
-      margin-right: 12px;
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
       border: 1px solid #666;
       flex-shrink: 0;
     }
+
     .legend-text {
       line-height: 1.3;
     }
+
     .legend-title {
       font-weight: bold;
-      color: #fff;
+      color: #000;
     }
+
     .legend-desc {
-      color: #aaa;
+      color: #555;
       font-size: 12px;
     }
+
     .section-divider {
-      border-top: 1px solid #333;
-      margin: 15px 0;
+      border-top: 1px solid #ddd;
+      margin: 14px 0;
+    }
+
+    /* Controls card styles */
+    #controls {
+      width: 210px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .key-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      border: 1px solid #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      margin-right: 10px;
+      background: #f3f3f3;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+    }
+
+    .control-label-main {
+      font-weight: 600;
+      color: #111;
+    }
+
+    .control-label-sub {
+      font-size: 12px;
+      color: #555;
     }
   </style>
 </head>
 <body>
   <div id="game-container">
+
+    <!-- LEFT: controls key -->
+    <div id="controls" class="side-card">
+      <h2>Controls</h2>
+
+      <div class="control-row">
+        <div class="key-box">W</div>
+        <div>
+          <div class="control-label-main">Move Up</div>
+          <div class="control-label-sub">Hold to keep going upward</div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="key-box">S</div>
+        <div>
+          <div class="control-label-main">Move Down</div>
+          <div class="control-label-sub">Hold to keep going downward</div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="key-box">A</div>
+        <div>
+          <div class="control-label-main">Move Left</div>
+          <div class="control-label-sub">Turn the snake left</div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="key-box">D</div>
+        <div>
+          <div class="control-label-main">Move Right</div>
+          <div class="control-label-sub">Turn the snake right</div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="control-row">
+        <div class="key-box">M</div>
+        <div>
+          <div class="control-label-main">Toggle Music</div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="key-box">R</div>
+        <div>
+          <div class="control-label-main">New Selection</div>
+          <div class="control-label-sub">Return to avatar + difficulty screen</div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="key-box">␣</div>
+        <div>
+          <div class="control-label-main">Start / Replay</div>
+          <div class="control-label-sub">Start game or replay after Game Over</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: game canvas -->
     <div id="canvas-section">
       <canvas id="game" width="510" height="560"></canvas>
       <div id="info">
-        <div>Selection: LEFT/RIGHT = color, UP/DOWN = difficulty, SPACE = start</div>
-        <div>In game: Arrow keys to move, M = toggle music, SPACE after Game Over = restart</div>
+        <div>Selection: A/D = color, W/S = difficulty, SPACE = start</div>
+        <div>In game: W/A/S/D to move, M = music, SPACE after Game Over = restart, R = new selection</div>
       </div>
     </div>
-    
-    <div id="legend">
+
+    <!-- RIGHT: power-up legend -->
+    <div id="legend" class="side-card">
       <h2>Power-Ups</h2>
-      
+
       <div class="legend-item">
         <div class="legend-color" style="background: #FF0000;"></div>
         <div class="legend-text">
@@ -102,7 +227,7 @@
           <div class="legend-desc">Grow by 1 segment</div>
         </div>
       </div>
-      
+
       <div class="legend-item">
         <div class="legend-color" style="background: #800080;"></div>
         <div class="legend-text">
@@ -110,7 +235,7 @@
           <div class="legend-desc">+0.2 speed for 5 sec</div>
         </div>
       </div>
-      
+
       <div class="legend-item">
         <div class="legend-color" style="background: #90EE90;"></div>
         <div class="legend-text">
@@ -118,7 +243,7 @@
           <div class="legend-desc">Random teleport</div>
         </div>
       </div>
-      
+
       <div class="legend-item">
         <div class="legend-color" style="background: #FFFF00;"></div>
         <div class="legend-text">
@@ -126,7 +251,7 @@
           <div class="legend-desc">-0.2 speed for 5 sec</div>
         </div>
       </div>
-      
+
       <div class="legend-item">
         <div class="legend-color" style="background: #0000FF;"></div>
         <div class="legend-text">
@@ -134,20 +259,19 @@
           <div class="legend-desc">Grow by 2 segments</div>
         </div>
       </div>
-      
+
       <div class="section-divider"></div>
-      
-      <h2 style="margin-top: 15px;">Difficulty Modes</h2>
-      
-      <div style="font-size: 13px; line-height: 1.6; color: #ccc;">
-        <div style="margin-bottom: 10px;">
-          <strong style="color: #90EE90;">Easy:</strong> Only red food
+
+      <h2 style="margin-top: 8px;">Difficulty</h2>
+      <div style="font-size: 13px; line-height: 1.6; color: #333;">
+        <div style="margin-bottom: 8px;">
+          <strong style="color: #4CAF50;">Easy:</strong> Only red food
         </div>
-        <div style="margin-bottom: 10px;">
-          <strong style="color: #FFFF00;">Medium:</strong> All except green
+        <div style="margin-bottom: 8px;">
+          <strong style="color: #FFA500;">Medium:</strong> All except green
         </div>
-        <div style="margin-bottom: 10px;">
-          <strong style="color: #FF6666;">Hard:</strong> All power-ups
+        <div style="margin-bottom: 2px;">
+          <strong style="color: #F44336;">Hard:</strong> All power-ups
         </div>
       </div>
     </div>
@@ -294,12 +418,10 @@
       let possible = [];
 
       if (difficultyId === "EASY") {
-        // Only red food
         currentPowerup = POWERUP_TYPES.FOOD;
         spawnItem();
         return;
       } else if (difficultyId === "MEDIUM") {
-        // All except green (TELEPORT)
         possible = [
           POWERUP_TYPES.FOOD,
           POWERUP_TYPES.SPEED_UP,
@@ -307,7 +429,6 @@
           POWERUP_TYPES.DOUBLE_GROWTH
         ];
       } else {
-        // HARD: all power-ups including green (TELEPORT)
         possible = [
           POWERUP_TYPES.FOOD,
           POWERUP_TYPES.SPEED_UP,
@@ -379,18 +500,18 @@
     document.addEventListener("keydown", (e) => {
       userInteracted = true;
 
-      // Selection screen controls
+      // Selection screen controls (WASD)
       if (inSelectionScreen) {
-        if (e.key === "ArrowLeft") {
+        if (e.key === "a" || e.key === "A") {
           selectedColorIndex =
             (selectedColorIndex - 1 + SNAKE_COLORS.length) % SNAKE_COLORS.length;
-        } else if (e.key === "ArrowRight") {
+        } else if (e.key === "d" || e.key === "D") {
           selectedColorIndex =
             (selectedColorIndex + 1) % SNAKE_COLORS.length;
-        } else if (e.key === "ArrowUp") {
+        } else if (e.key === "w" || e.key === "W") {
           selectedDifficultyIndex =
             (selectedDifficultyIndex - 1 + DIFFICULTIES.length) % DIFFICULTIES.length;
-        } else if (e.key === "ArrowDown") {
+        } else if (e.key === "s" || e.key === "S") {
           selectedDifficultyIndex =
             (selectedDifficultyIndex + 1) % DIFFICULTIES.length;
         } else if (e.key === " " || e.code === "Space") {
@@ -400,42 +521,40 @@
         return;
       }
 
-      // In-game controls
-      if (e.key === "ArrowUp") {
+      // In-game controls (WASD)
+      if (e.key === "w" || e.key === "W") {
         if (direction !== Direction.DOWN) nextDirection = Direction.UP;
-      } else if (e.key === "ArrowDown") {
+      } else if (e.key === "s" || e.key === "S") {
         if (direction !== Direction.UP) nextDirection = Direction.DOWN;
-      } else if (e.key === "ArrowLeft") {
+      } else if (e.key === "a" || e.key === "A") {
         if (direction !== Direction.RIGHT) nextDirection = Direction.LEFT;
-      } else if (e.key === "ArrowRight") {
+      } else if (e.key === "d" || e.key === "D") {
         if (direction !== Direction.LEFT) nextDirection = Direction.RIGHT;
       } else if (e.key === "m" || e.key === "M") {
         toggleMusic();
+      } else if (e.key === "r" || e.key === "R") {
+        resetToSelectionScreen();
       } else if ((e.key === " " || e.code === "Space") && gameOver) {
         e.preventDefault();
-        resetToSelectionScreen();
+        startCountdown();
       }
     });
 
     // ==== UPDATE ====
     function updateCountdown(timestamp) {
       const elapsed = timestamp - countdownStartTime;
-      const numberDuration = 1000; // Each number lasts 1 second
+      const numberDuration = 1000; // 1 second each
       
-      // Calculate which number we're on
       const numberIndex = Math.floor(elapsed / numberDuration);
       
       if (numberIndex >= 3) {
-        // Countdown finished, start game
         startGame();
         return;
       }
       
       countdownNumber = 3 - numberIndex;
-      
-      // Calculate scale (shrink from 3.0 to 1.0 over 1 second)
       const progress = (elapsed % numberDuration) / numberDuration;
-      countdownScale = 3.0 - (progress * 2.0); // Goes from 3.0 to 1.0
+      countdownScale = 3.0 - (progress * 2.0);
     }
     
     function updateGame() {
@@ -511,7 +630,7 @@
     function drawCountdown() {
       clearCanvas();
       
-      // Draw the grid faintly in background
+      // Grid faintly in background
       ctx.strokeStyle = rgb(COLORS.GRAY);
       ctx.lineWidth = 1;
       for (let x = 0; x < GRID_SIZE; x++) {
@@ -520,7 +639,6 @@
         }
       }
       
-      // Draw countdown number with scaling effect
       ctx.save();
       ctx.translate(WIDTH / 2, (HEIGHT - 50) / 2);
       ctx.scale(countdownScale, countdownScale);
@@ -538,17 +656,16 @@
       clearCanvas();
 
       ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.font = "bold 36px sans-serif";
+      ctx.font = "bold 32px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("SELECT YOUR SNAKE", WIDTH / 2, 70);
 
       ctx.font = "16px sans-serif";
-      ctx.fillStyle = rgb(COLORS.GRAY);
-      ctx.fillText("Use LEFT/RIGHT arrows to choose color", WIDTH / 2, 105);
-      ctx.fillText("Use UP/DOWN arrows to choose difficulty", WIDTH / 2, 125);
-      ctx.fillText("Press SPACE to start", WIDTH / 2, 145);
+      ctx.fillStyle = "rgba(220,220,220,0.9)";
+      ctx.fillText("Use A/D keys to choose color", WIDTH / 2, 100);
+      ctx.fillText("Use W/S keys to choose difficulty", WIDTH / 2, 122);
+      ctx.fillText("Press SPACE to start", WIDTH / 2, 144);
 
-      // Snake color previews
       const boxHeight = 40;
       const spacingY = 70;
       const perRow = 4;
@@ -581,7 +698,6 @@
         ctx.fillText(scheme.name, xBase - 10, yBase + boxHeight + 18);
       });
 
-      // Difficulty selection
       const diffY = HEIGHT - 80;
       ctx.font = "20px sans-serif";
       ctx.fillStyle = rgb(COLORS.WHITE);
@@ -595,13 +711,13 @@
           ctx.fillStyle = rgb(d.color);
           ctx.font = "bold 22px sans-serif";
         } else {
-          ctx.fillStyle = rgb(COLORS.GRAY);
+          ctx.fillStyle = "rgba(160,160,160,0.8)";
           ctx.font = "20px sans-serif";
         }
         ctx.fillText(d.name, x, diffY);
 
         ctx.font = "12px sans-serif";
-        ctx.fillStyle = rgb(COLORS.GRAY);
+        ctx.fillStyle = "rgba(180,180,180,0.8)";
         ctx.fillText(d.description, x, diffY + 18);
       });
     }
@@ -618,7 +734,6 @@
         }
       }
 
-      // Snake
       const colorScheme = SNAKE_COLORS[selectedColorIndex];
       snake.forEach((seg, i) => {
         const isHead = i === 0;
@@ -626,7 +741,6 @@
         ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       });
 
-      // Powerup/food
       if (powerupPos) {
         ctx.fillStyle = getPowerupColor();
         ctx.fillRect(
@@ -637,17 +751,14 @@
         );
       }
 
-      // Score
       ctx.fillStyle = rgb(COLORS.WHITE);
       ctx.font = "20px sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("Score: " + score, 10, HEIGHT - 20);
 
-      // Difficulty display
       ctx.font = "16px sans-serif";
       ctx.fillText("Mode: " + DIFFICULTIES[selectedDifficultyIndex].name, 150, HEIGHT - 20);
 
-      // Speed message
       if (speedBoostEndTime > 0) {
         const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
         const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
@@ -657,7 +768,6 @@
         ctx.fillText(msg, WIDTH / 2, 25);
       }
 
-      // Music status
       if (musicLoaded) {
         ctx.fillStyle = rgb(COLORS.WHITE);
         ctx.font = "14px sans-serif";
@@ -666,7 +776,6 @@
         ctx.fillText(text, WIDTH - 10, HEIGHT - 20);
       }
 
-      // Game over overlay
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -681,7 +790,8 @@
         ctx.fillText("Final Score: " + score, WIDTH / 2, HEIGHT / 2 + 20);
         
         ctx.font = "18px sans-serif";
-        ctx.fillText("Press SPACE to restart", WIDTH / 2, HEIGHT / 2 + 55);
+        ctx.fillText("Press SPACE to play again", WIDTH / 2, HEIGHT / 2 + 55);
+        ctx.fillText("Press R for new selection", WIDTH / 2, HEIGHT / 2 + 80);
       }
     }
 
@@ -699,7 +809,6 @@
     function loop(timestamp) {
       if (!lastStepTime) lastStepTime = timestamp;
 
-      // Update countdown if active
       if (inCountdown) {
         updateCountdown(timestamp);
       }
