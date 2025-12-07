@@ -359,54 +359,6 @@
       return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
     }
 
-    // Rounded rectangle helper
-    function roundRect(ctx, x, y, w, h, r) {
-      const radius = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + w - radius, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-      ctx.lineTo(x + w, y + h - radius);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-      ctx.lineTo(x + radius, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-    }
-
-    // Draw an apple inside one grid cell
-    function drawAppleCell(cellX, cellY) {
-      const x = cellX * CELL_SIZE;
-      const y = cellY * CELL_SIZE;
-      const cx = x + CELL_SIZE / 2;
-      const cy = y + CELL_SIZE / 2 + 2;
-      const radius = CELL_SIZE * 0.35;
-
-      // Apple body
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fillStyle = "#ff2b2b";
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(0,0,0,0.4)";
-      ctx.stroke();
-
-      // Stem
-      ctx.beginPath();
-      ctx.strokeStyle = "#5c3b1a";
-      ctx.lineWidth = 2;
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx, cy - radius - 7);
-      ctx.stroke();
-
-      // Leaf
-      ctx.beginPath();
-      ctx.fillStyle = "#3abf3a";
-      ctx.ellipse(cx + 5, cy - radius - 4, 4, 7, -Math.PI / 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
     // ==== GAME STATE ====
     let inSelectionScreen = true;
     let selectedColorIndex = 0;
@@ -433,7 +385,7 @@
     let countdownStartTime = 0;
     let countdownScale = 1;
 
-    // For continue feature
+    // Length to remember for continue feature
     let continueSnakeLength = 3;
 
     // Music
@@ -510,6 +462,92 @@
       return rgb(COLORS.RED);
     }
 
+    // --- Drawing helpers for snake & apple ---
+
+    function drawSnakeSegmentGrid(x, y, color) {
+      const cx = x * CELL_SIZE + CELL_SIZE / 2;
+      const cy = y * CELL_SIZE + CELL_SIZE / 2;
+      const radius = CELL_SIZE * 0.45;
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawSnakeHeadGrid(x, y, color) {
+      const cx = x * CELL_SIZE + CELL_SIZE / 2;
+      const cy = y * CELL_SIZE + CELL_SIZE / 2;
+      const radius = CELL_SIZE * 0.48;
+
+      // Head
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes (simple, white + black pupils)
+      const eyeOffsetX = CELL_SIZE * 0.18;
+      const eyeOffsetY = CELL_SIZE * -0.12;
+      const eyeRadius = CELL_SIZE * 0.09;
+      const pupilRadius = CELL_SIZE * 0.05;
+
+      ctx.fillStyle = "white";
+      // Left eye
+      ctx.beginPath();
+      ctx.arc(cx - eyeOffsetX, cy + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+      // Right eye
+      ctx.beginPath();
+      ctx.arc(cx + eyeOffsetX, cy + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "black";
+      // Pupils
+      ctx.beginPath();
+      ctx.arc(cx - eyeOffsetX, cy + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + eyeOffsetX, cy + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawAppleGrid(gridX, gridY) {
+      const cx = gridX * CELL_SIZE + CELL_SIZE / 2;
+      const cy = gridY * CELL_SIZE + CELL_SIZE / 2;
+      const radius = CELL_SIZE * 0.4;
+
+      // Apple body
+      ctx.fillStyle = "#ff1a1a";
+      ctx.beginPath();
+      ctx.arc(cx - radius * 0.25, cy, radius * 0.9, Math.PI * 0.2, Math.PI * 1.8);
+      ctx.arc(cx + radius * 0.25, cy, radius * 0.9, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Stem
+      ctx.strokeStyle = "#5b3b16";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - radius * 1.1);
+      ctx.lineTo(cx, cy - radius * 1.7);
+      ctx.stroke();
+
+      // Leaf
+      ctx.fillStyle = "#4CAF50";
+      ctx.beginPath();
+      ctx.ellipse(
+        cx + radius * 0.4,
+        cy - radius * 1.4,
+        radius * 0.35,
+        radius * 0.2,
+        -0.7,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+
     // ==== GAME SETUP ====
     function startCountdown() {
       inSelectionScreen = false;
@@ -549,7 +587,7 @@
       }
     }
 
-    // Continue with same length & score
+    // Continue with same size & score
     function resetSnakeKeepScore() {
       const length = Math.max(3, continueSnakeLength || 3);
       const startX = Math.floor(GRID_SIZE / 2);
@@ -630,7 +668,6 @@
       } else if (e.key === "r" || e.key === "R") {
         resetToSelectionScreen();
       } else if (e.key === "c" || e.key === "C") {
-        // continue from center with same size & score
         e.preventDefault();
         resetSnakeKeepScore();
       } else if ((e.key === " " || e.code === "Space") && gameOver) {
@@ -697,7 +734,7 @@
         score += 1;
 
         if (currentPowerup === POWERUP_TYPES.FOOD) {
-          // just grow
+          // normal apple: just grow
         } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
           currentSpeed = baseSpeed + 2;
           speedBoostEndTime = nowSec + 5;
@@ -719,7 +756,7 @@
         snake.pop();
       }
 
-      // remember length for continue feature
+      // remember size for continue
       continueSnakeLength = snake.length;
     }
 
@@ -768,10 +805,10 @@
       ctx.fillText("Use W/S keys to choose difficulty", WIDTH / 2, 122);
       ctx.fillText("Press SPACE to start", WIDTH / 2, 144);
 
-      const boxHeight = 34;
       const spacingY = 70;
       const perRow = 4;
       const startY = 190;
+      const segRadius = 9;
 
       SNAKE_COLORS.forEach((scheme, index) => {
         const row = Math.floor(index / perRow);
@@ -779,53 +816,28 @@
 
         const xBase = WIDTH / 2 - 220 + col * 130;
         const yBase = startY + row * spacingY;
+        const centerY = yBase + 20;
 
-        // draw a mini snake (always facing right)
-        const segments = 5;
-        const segSpacing = 18;
-        for (let i = 0; i < segments; i++) {
-          const segX = xBase + i * segSpacing;
-          const segY = yBase;
-          const isHead = i === 0;
-
-          ctx.fillStyle = isHead ? rgb(scheme.head) : rgb(scheme.body);
-          roundRect(ctx, segX, segY, 16, boxHeight, 10);
+        // tiny snake preview: 3 segments
+        for (let i = 0; i < 3; i++) {
+          const cx = xBase + i * 18;
+          const cy = centerY;
+          ctx.beginPath();
+          ctx.fillStyle = i === 0 ? rgb(scheme.head) : rgb(scheme.body);
+          ctx.arc(cx, cy, segRadius, 0, Math.PI * 2);
           ctx.fill();
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = "rgba(0,0,0,0.4)";
-          ctx.stroke();
-
-          if (isHead) {
-            // tiny eyes on the right side
-            const eyeRadius = 2;
-            const ex = segX + 14;
-            const ey1 = segY + 9;
-            const ey2 = segY + boxHeight - 9;
-
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath();
-            ctx.arc(ex, ey1, eyeRadius, 0, Math.PI * 2);
-            ctx.arc(ex, ey2, eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = "#000000";
-            ctx.beginPath();
-            ctx.arc(ex, ey1, 1, 0, Math.PI * 2);
-            ctx.arc(ex, ey2, 1, 0, Math.PI * 2);
-            ctx.fill();
-          }
         }
 
         if (index === selectedColorIndex) {
           ctx.strokeStyle = rgb(COLORS.WHITE);
           ctx.lineWidth = 3;
-          ctx.strokeRect(xBase - 6, yBase - 8, segSpacing * segments - segSpacing + 28, boxHeight + 16);
+          ctx.strokeRect(xBase - 10, yBase - 8, 70, 56);
         }
 
         ctx.font = "13px sans-serif";
         ctx.fillStyle = rgb(COLORS.WHITE);
         ctx.textAlign = "left";
-        ctx.fillText(scheme.name, xBase - 10, yBase + boxHeight + 18);
+        ctx.fillText(scheme.name, xBase - 10, yBase + 48);
       });
 
       const diffY = HEIGHT - 80;
@@ -852,89 +864,6 @@
       });
     }
 
-    // Draw snake face (eyes + tongue) based on current direction
-    function drawSnakeFace(headCell) {
-      const cellX = headCell.x * CELL_SIZE;
-      const cellY = headCell.y * CELL_SIZE;
-      const cx = cellX + CELL_SIZE / 2;
-      const cy = cellY + CELL_SIZE / 2;
-      const eyeR = 3;
-
-      let e1x, e1y, e2x, e2y, tx1, ty1, tx2, ty2, tx3, ty3;
-
-      if (direction === Direction.RIGHT) {
-        e1x = cellX + CELL_SIZE * 0.7;
-        e2x = e1x;
-        e1y = cellY + CELL_SIZE * 0.35;
-        e2y = cellY + CELL_SIZE * 0.65;
-
-        tx1 = cellX + CELL_SIZE;
-        ty1 = cy;
-        tx2 = tx1 + 6;
-        ty2 = cy - 3;
-        tx3 = tx1 + 6;
-        ty3 = cy + 3;
-      } else if (direction === Direction.LEFT) {
-        e1x = cellX + CELL_SIZE * 0.3;
-        e2x = e1x;
-        e1y = cellY + CELL_SIZE * 0.35;
-        e2y = cellY + CELL_SIZE * 0.65;
-
-        tx1 = cellX;
-        ty1 = cy;
-        tx2 = tx1 - 6;
-        ty2 = cy - 3;
-        tx3 = tx1 - 6;
-        ty3 = cy + 3;
-      } else if (direction === Direction.UP) {
-        e1y = cellY + CELL_SIZE * 0.3;
-        e2y = e1y;
-        e1x = cellX + CELL_SIZE * 0.35;
-        e2x = cellX + CELL_SIZE * 0.65;
-
-        tx1 = cx;
-        ty1 = cellY;
-        tx2 = cx - 3;
-        ty2 = ty1 - 6;
-        tx3 = cx + 3;
-        ty3 = ty1 - 6;
-      } else { // DOWN
-        e1y = cellY + CELL_SIZE * 0.7;
-        e2y = e1y;
-        e1x = cellX + CELL_SIZE * 0.35;
-        e2x = cellX + CELL_SIZE * 0.65;
-
-        tx1 = cx;
-        ty1 = cellY + CELL_SIZE;
-        tx2 = cx - 3;
-        ty2 = ty1 + 6;
-        tx3 = cx + 3;
-        ty3 = ty1 + 6;
-      }
-
-      // Eyes
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(e1x, e1y, eyeR, 0, Math.PI * 2);
-      ctx.arc(e2x, e2y, eyeR, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#000000";
-      ctx.beginPath();
-      ctx.arc(e1x, e1y, 1.8, 0, Math.PI * 2);
-      ctx.arc(e2x, e2y, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Tongue
-      ctx.fillStyle = "#ff4d4d";
-      ctx.beginPath();
-      ctx.moveTo(tx1, ty1);
-      ctx.lineTo(tx2, ty2);
-      ctx.lineTo(tx3, ty3);
-      ctx.closePath();
-      ctx.fill();
-    }
-
     function drawGame() {
       clearCanvas();
 
@@ -947,31 +876,20 @@
         }
       }
 
-      // Snake with rounded body and a head
       const colorScheme = SNAKE_COLORS[selectedColorIndex];
       snake.forEach((seg, i) => {
-        const px = seg.x * CELL_SIZE;
-        const py = seg.y * CELL_SIZE;
-        const inset = 3;
         const isHead = i === 0;
-
-        ctx.fillStyle = isHead ? rgb(colorScheme.head) : rgb(colorScheme.body);
-        roundRect(ctx, px + inset, py + inset, CELL_SIZE - inset * 2, CELL_SIZE - inset * 2, 10);
-        ctx.fill();
-        ctx.lineWidth = 1.7;
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
-        ctx.stroke();
+        if (isHead) {
+          drawSnakeHeadGrid(seg.x, seg.y, rgb(colorScheme.head));
+        } else {
+          drawSnakeSegmentGrid(seg.x, seg.y, rgb(colorScheme.body));
+        }
       });
 
-      // Head details (eyes + tongue)
-      if (snake.length > 0) {
-        drawSnakeFace(snake[0]);
-      }
-
-      // Powerup/food
+      // Powerup / food (apple)
       if (powerupPos) {
         if (currentPowerup === POWERUP_TYPES.FOOD) {
-          drawAppleCell(powerupPos.x, powerupPos.y);
+          drawAppleGrid(powerupPos.x, powerupPos.y);
         } else {
           ctx.fillStyle = getPowerupColor();
           ctx.fillRect(
@@ -980,28 +898,17 @@
             CELL_SIZE - 8,
             CELL_SIZE - 8
           );
-          ctx.strokeStyle = "rgba(0,0,0,0.5)";
-          ctx.lineWidth = 1.5;
-          ctx.strokeRect(
-            powerupPos.x * CELL_SIZE + 4,
-            powerupPos.y * CELL_SIZE + 4,
-            CELL_SIZE - 8,
-            CELL_SIZE - 8
-          );
         }
       }
 
-      // Score
       ctx.fillStyle = rgb(COLORS.WHITE);
       ctx.font = "20px sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("Score: " + score, 10, HEIGHT - 20);
 
-      // Difficulty display
       ctx.font = "16px sans-serif";
       ctx.fillText("Mode: " + DIFFICULTIES[selectedDifficultyIndex].name, 150, HEIGHT - 20);
 
-      // Speed message
       if (speedBoostEndTime > 0) {
         const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
         const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
@@ -1011,7 +918,6 @@
         ctx.fillText(msg, WIDTH / 2, 25);
       }
 
-      // Music status
       if (musicLoaded) {
         ctx.fillStyle = rgb(COLORS.WHITE);
         ctx.font = "14px sans-serif";
@@ -1020,7 +926,6 @@
         ctx.fillText(text, WIDTH - 10, HEIGHT - 20);
       }
 
-      // Game over overlay
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
