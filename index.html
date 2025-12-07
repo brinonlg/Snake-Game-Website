@@ -1,526 +1,452 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Snake Game</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-    #game-container {
-      text-align: center;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-      border: 1px solid #444;
-      background: #000;
-    }
-    #info {
-      margin-top: 8px;
-      font-size: 14px;
-      color: #ccc;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        h1 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 2em;
+        }
+        
+        .info {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        canvas {
+            border: 3px solid #333;
+            background: #000;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.85em;
+        }
+    </style>
 </head>
 <body>
-  <div id="game-container">
-    <canvas id="game" width="510" height="560"></canvas>
-    <div id="info">
-      <div>Selection: LEFT/RIGHT = color, UP/DOWN = difficulty, SPACE = start.</div>
-      <div>In game: Arrow keys / WASD to move. SPACE after Game Over, M toggles music.</div>
+    <div class="game-container">
+        <h1>🐍 Snake Game</h1>
+        <div class="info" id="info">Use arrow keys to navigate</div>
+        <canvas id="gameCanvas" width="510" height="560"></canvas>
+        <div class="controls" id="controls">
+            Selection: LEFT/RIGHT arrows, SPACE to start
+        </div>
     </div>
-  </div>
 
-  <script>
-    // ==== CONFIGURATION ====
-    const GRID_SIZE = 17;
-    const CELL_SIZE = 30;
-    const WIDTH = GRID_SIZE * CELL_SIZE;
-    const HEIGHT = GRID_SIZE * CELL_SIZE + 50;
-
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-
-    const Direction = {
-      UP:    { x:  0, y: -1 },
-      DOWN:  { x:  0, y:  1 },
-      LEFT:  { x: -1, y:  0 },
-      RIGHT: { x:  1, y:  0 }
-    };
-
-    const POWERUP_TYPES = {
-      FOOD: "FOOD",
-      SPEED_UP: "SPEED_UP",
-      TELEPORT: "TELEPORT",
-      SLOW_DOWN: "SLOW_DOWN",
-      DOUBLE_GROWTH: "DOUBLE_GROWTH"
-    };
-
-    // Difficulty modes
-    const DIFFICULTIES = [
-      {
-        name: "Easy",
-        description: "Only red food squares",
-        id: "EASY"
-      },
-      {
-        name: "Medium",
-        description: "All squares except green",
-        id: "MEDIUM"
-      },
-      {
-        name: "Hard",
-        description: "All squares including green",
-        id: "HARD"
-      }
-    ];
-
-    // Snake color schemes
-    const SNAKE_COLORS = [
-      { name: "Classic Green", head: [0, 255, 0], body: [0, 200, 0] },
-      { name: "Ocean Blue",   head: [0, 150, 255], body: [0, 100, 200] },
-      { name: "Fire Red",     head: [255, 50, 50], body: [200, 0, 0] },
-      { name: "Royal Purple", head: [180, 0, 255], body: [120, 0, 180] },
-      { name: "Sunset Orange",head: [255, 165, 0], body: [200, 100, 0] },
-      { name: "Bubblegum Pink", head: [255, 192, 203], body: [255, 100, 150] },
-      { name: "Cyber Cyan",   head: [0, 255, 255], body: [0, 180, 180] },
-      { name: "Golden",       head: [255, 215, 0], body: [218, 165, 32] }
-    ];
-
-    const COLORS = {
-      BLACK: [0, 0, 0],
-      WHITE: [255, 255, 255],
-      RED: [255, 0, 0],
-      GRAY: [50, 50, 50],
-      PURPLE: [128, 0, 128],
-      YELLOW: [255, 255, 0],
-      BLUE: [0, 0, 255],
-      LIGHT_GREEN: [144, 238, 144]
-    };
-
-    function rgb(arr) {
-      return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
-    }
-
-    // ==== GAME STATE ====
-    let inSelectionScreen = true;
-    let selectedColorIndex = 0;
-    let selectedDifficultyIndex = 0; // 0 = Easy, 1 = Medium, 2 = Hard
-
-    let snake = [];
-    let direction = Direction.RIGHT;
-    let nextDirection = Direction.RIGHT;
-
-    let currentPowerup = POWERUP_TYPES.FOOD;
-    let powerupPos = null;
-
-    let score = 0;
-    const baseSpeed = 10;
-    let currentSpeed = baseSpeed;
-    let speedBoostEndTime = 0;
-
-    let gameOver = false;
-    let lastStepTime = 0;
-
-    // Music
-    let bgMusic = null;
-    let musicLoaded = false;
-    let userInteracted = false;
-    try {
-      bgMusic = new Audio("background_music.mp3");
-      bgMusic.loop = true;
-      musicLoaded = true;
-    } catch (e) {
-      musicLoaded = false;
-    }
-
-    function toggleMusic() {
-      if (!bgMusic || !musicLoaded) return;
-      if (bgMusic.paused) {
-        bgMusic.play().catch(() => {});
-      } else {
-        bgMusic.pause();
-      }
-    }
-
-    // ==== HELPERS ====
-    function randomEmptyCell() {
-      while (true) {
-        const x = Math.floor(Math.random() * GRID_SIZE);
-        const y = Math.floor(Math.random() * GRID_SIZE);
-        if (!snake.some(seg => seg.x === x && seg.y === y)) {
-          return { x, y };
-        }
-      }
-    }
-
-    function spawnItem() {
-      powerupPos = randomEmptyCell();
-    }
-
-    // choose powerup based on difficulty
-    function spawnNewPowerup() {
-      const difficultyId = DIFFICULTIES[selectedDifficultyIndex].id;
-      let possible = [];
-
-      if (difficultyId === "EASY") {
-        // Only red food squares
-        currentPowerup = POWERUP_TYPES.FOOD;
-        spawnItem();
-        return;
-      } else if (difficultyId === "MEDIUM") {
-        // All except green (TELEPORT)
-        possible = [
-          POWERUP_TYPES.FOOD,
-          POWERUP_TYPES.SPEED_UP,
-          POWERUP_TYPES.SLOW_DOWN,
-          POWERUP_TYPES.DOUBLE_GROWTH
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const infoElement = document.getElementById('info');
+        const controlsElement = document.getElementById('controls');
+        
+        // Game settings
+        const GRID_SIZE = 17;
+        const CELL_SIZE = 30;
+        const WIDTH = GRID_SIZE * CELL_SIZE;
+        const HEIGHT = GRID_SIZE * CELL_SIZE + 50;
+        
+        // Colors
+        const COLORS = {
+            BLACK: '#000000',
+            WHITE: '#FFFFFF',
+            RED: '#FF0000',
+            GRAY: '#323232',
+            PURPLE: '#800080',
+            YELLOW: '#FFFF00',
+            BLUE: '#0000FF',
+            LIGHT_GREEN: '#90EE90'
+        };
+        
+        // Snake color schemes
+        const SNAKE_COLORS = [
+            { name: "Classic Green", head: '#00FF00', body: '#00C800' },
+            { name: "Ocean Blue", head: '#0096FF', body: '#0064C8' },
+            { name: "Fire Red", head: '#FF3232', body: '#C80000' },
+            { name: "Royal Purple", head: '#B400FF', body: '#7800B4' },
+            { name: "Sunset Orange", head: '#FFA500', body: '#C86400' },
+            { name: "Bubblegum Pink", head: '#FFC0CB', body: '#FF6496' },
+            { name: "Cyber Cyan", head: '#00FFFF', body: '#00B4B4' },
+            { name: "Golden", head: '#FFD700', body: '#DAA520' }
         ];
-      } else {
-        // HARD: all, including TELEPORT (green)
-        possible = [
-          POWERUP_TYPES.FOOD,
-          POWERUP_TYPES.SPEED_UP,
-          POWERUP_TYPES.TELEPORT,
-          POWERUP_TYPES.SLOW_DOWN,
-          POWERUP_TYPES.DOUBLE_GROWTH
-        ];
-      }
-
-      currentPowerup = possible[Math.floor(Math.random() * possible.length)];
-      spawnItem();
-    }
-
-    function getPowerupColor() {
-      if (currentPowerup === POWERUP_TYPES.FOOD) return rgb(COLORS.RED);
-      if (currentPowerup === POWERUP_TYPES.SPEED_UP) return rgb(COLORS.PURPLE);
-      if (currentPowerup === POWERUP_TYPES.TELEPORT) return rgb(COLORS.LIGHT_GREEN);
-      if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) return rgb(COLORS.YELLOW);
-      if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) return rgb(COLORS.BLUE);
-      return rgb(COLORS.RED);
-    }
-
-    // ==== GAME SETUP ====
-    function startGame() {
-      const startX = Math.floor(GRID_SIZE / 2);
-      const startY = Math.floor(GRID_SIZE / 2);
-      snake = [
-        { x: startX, y: startY },
-        { x: startX - 1, y: startY },
-        { x: startX - 2, y: startY }
-      ];
-
-      direction = Direction.RIGHT;
-      nextDirection = Direction.RIGHT;
-      score = 0;
-      gameOver = false;
-      currentSpeed = baseSpeed;
-      speedBoostEndTime = 0;
-
-      // Always start with food
-      currentPowerup = POWERUP_TYPES.FOOD;
-      spawnItem();
-
-      inSelectionScreen = false;
-      lastStepTime = performance.now();
-
-      if (bgMusic && musicLoaded && userInteracted) {
-        bgMusic.play().catch(() => {});
-        bgMusic.volume = 0.5;
-      }
-    }
-
-    function resetToSelectionScreen() {
-      inSelectionScreen = true;
-      gameOver = false;
-    }
-
-    // ==== INPUT ====
-    document.addEventListener("keydown", (e) => {
-      userInteracted = true;
-
-      // Selection screen controls
-      if (inSelectionScreen) {
-        if (e.key === "ArrowLeft") {
-          selectedColorIndex =
-            (selectedColorIndex - 1 + SNAKE_COLORS.length) % SNAKE_COLORS.length;
-        } else if (e.key === "ArrowRight") {
-          selectedColorIndex =
-            (selectedColorIndex + 1) % SNAKE_COLORS.length;
-        } else if (e.key === "ArrowUp") {
-          selectedDifficultyIndex =
-            (selectedDifficultyIndex - 1 + DIFFICULTIES.length) % DIFFICULTIES.length;
-        } else if (e.key === "ArrowDown") {
-          selectedDifficultyIndex =
-            (selectedDifficultyIndex + 1) % DIFFICULTIES.length;
-        } else if (e.key === " " || e.code === "Space") {
-          startGame();
+        
+        // Power-up types
+        const POWERUP = {
+            FOOD: 'FOOD',
+            SPEED_UP: 'SPEED_UP',
+            TELEPORT: 'TELEPORT',
+            SLOW_DOWN: 'SLOW_DOWN',
+            DOUBLE_GROWTH: 'DOUBLE_GROWTH'
+        };
+        
+        // Game state
+        let inSelectionScreen = true;
+        let selectedColorIndex = 0;
+        let snake = [];
+        let direction = { x: 1, y: 0 };
+        let nextDirection = { x: 1, y: 0 };
+        let food = {};
+        let currentPowerup = POWERUP.FOOD;
+        let score = 0;
+        let gameOver = false;
+        let baseSpeed = 10;
+        let currentSpeed = baseSpeed;
+        let speedBoostEndTime = 0;
+        let lastUpdateTime = 0;
+        
+        // Music
+        let bgMusic = null;
+        let musicLoaded = false;
+        try {
+            bgMusic = new Audio('background_music.mp3');
+            bgMusic.loop = true;
+            musicLoaded = true;
+        } catch (e) {
+            console.log('Music file not found');
         }
-        return;
-      }
-
-      // In-game controls
-      if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
-        if (direction !== Direction.DOWN) nextDirection = Direction.UP;
-      } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
-        if (direction !== Direction.UP) nextDirection = Direction.DOWN;
-      } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-        if (direction !== Direction.RIGHT) nextDirection = Direction.LEFT;
-      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-        if (direction !== Direction.LEFT) nextDirection = Direction.RIGHT;
-      } else if (e.key === "m" || e.key === "M") {
-        toggleMusic();
-      } else if ((e.key === " " || e.code === "Space") && gameOver) {
-        resetToSelectionScreen();
-      }
-    });
-
-    // ==== UPDATE ====
-    function updateGame() {
-      if (gameOver || inSelectionScreen) return;
-
-      const nowSec = performance.now() / 1000;
-      if (speedBoostEndTime > 0 && nowSec >= speedBoostEndTime) {
-        currentSpeed = baseSpeed;
-        speedBoostEndTime = 0;
-      }
-
-      direction = nextDirection;
-
-      const head = snake[0];
-      const newHead = {
-        x: head.x + direction.x,
-        y: head.y + direction.y
-      };
-
-      // Walls
-      if (
-        newHead.x < 0 || newHead.x >= GRID_SIZE ||
-        newHead.y < 0 || newHead.y >= GRID_SIZE
-      ) {
-        gameOver = true;
-        if (bgMusic && musicLoaded) bgMusic.pause();
-        return;
-      }
-
-      // Self collision
-      if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
-        gameOver = true;
-        if (bgMusic && musicLoaded) bgMusic.pause();
-        return;
-      }
-
-      snake.unshift(newHead);
-
-      // Eat powerup?
-      if (powerupPos && newHead.x === powerupPos.x && newHead.y === powerupPos.y) {
-        score += 1;
-
-        if (currentPowerup === POWERUP_TYPES.FOOD) {
-          // just grow
-        } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
-          currentSpeed = baseSpeed + 2;
-          speedBoostEndTime = nowSec + 5;
-        } else if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) {
-          currentSpeed = Math.max(5, baseSpeed - 2);
-          speedBoostEndTime = nowSec + 5;
-        } else if (currentPowerup === POWERUP_TYPES.TELEPORT) {
-          const newPos = randomEmptyCell();
-          snake[0] = newPos;
-        } else if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) {
-          if (snake.length > 1) {
-            const tail = snake[snake.length - 1];
-            snake.push({ x: tail.x, y: tail.y });
-          }
+        
+        function startGame() {
+            const startX = Math.floor(GRID_SIZE / 2);
+            const startY = Math.floor(GRID_SIZE / 2);
+            snake = [
+                { x: startX, y: startY },
+                { x: startX - 1, y: startY },
+                { x: startX - 2, y: startY }
+            ];
+            direction = { x: 1, y: 0 };
+            nextDirection = { x: 1, y: 0 };
+            score = 0;
+            gameOver = false;
+            currentSpeed = baseSpeed;
+            speedBoostEndTime = 0;
+            currentPowerup = POWERUP.FOOD;
+            spawnFood();
+            inSelectionScreen = false;
+            lastUpdateTime = Date.now();
+            
+            if (bgMusic && musicLoaded) {
+                bgMusic.play().catch(() => {});
+                bgMusic.volume = 0.5;
+            }
+            
+            controlsElement.textContent = 'Arrow keys to move, M to toggle music';
         }
-
-        spawnNewPowerup();
-      } else {
-        snake.pop();
-      }
-    }
-
-    // ==== DRAW ====
-    function clearCanvas() {
-      ctx.fillStyle = rgb(COLORS.BLACK);
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    }
-
-    function drawSelectionScreen() {
-      clearCanvas();
-
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.font = "32px sans-serif";
-      ctx.fillText("SELECT YOUR SNAKE", WIDTH / 2 - 180, 60);
-
-      ctx.font = "18px sans-serif";
-      ctx.fillStyle = rgb(COLORS.GRAY);
-      ctx.fillText("LEFT/RIGHT: color  |  UP/DOWN: difficulty", WIDTH / 2 - 220, 90);
-      ctx.fillText("SPACE: start game", WIDTH / 2 - 110, 115);
-
-      // Snake color previews
-      const boxHeight = 40;
-      const spacingY = 70;
-      const perRow = 4;
-      const startY = 170;
-
-      SNAKE_COLORS.forEach((scheme, index) => {
-        const row = Math.floor(index / perRow);
-        const col = index % perRow;
-
-        const xBase = WIDTH / 2 - 220 + col * 130;
-        const yBase = startY + row * spacingY;
-
-        for (let i = 0; i < 3; i++) {
-          const rectX = xBase + i * 18;
-          const rectY = yBase;
-          const color = i === 0 ? scheme.head : scheme.body;
-          ctx.fillStyle = rgb(color);
-          ctx.fillRect(rectX, rectY, 16, boxHeight);
+        
+        function spawnFood() {
+            while (true) {
+                food = {
+                    x: Math.floor(Math.random() * GRID_SIZE),
+                    y: Math.floor(Math.random() * GRID_SIZE)
+                };
+                
+                let onSnake = false;
+                for (let segment of snake) {
+                    if (segment.x === food.x && segment.y === food.y) {
+                        onSnake = true;
+                        break;
+                    }
+                }
+                
+                if (!onSnake) break;
+            }
         }
-
-        if (index === selectedColorIndex) {
-          ctx.strokeStyle = rgb(COLORS.WHITE);
-          ctx.lineWidth = 2;
-          ctx.strokeRect(xBase - 6, yBase - 6, 60, boxHeight + 12);
+        
+        function spawnNewPowerup() {
+            const rand = Math.random();
+            if (rand < 0.3) {
+                currentPowerup = POWERUP.FOOD;
+            } else {
+                const powerups = [POWERUP.SPEED_UP, POWERUP.TELEPORT, POWERUP.SLOW_DOWN, POWERUP.DOUBLE_GROWTH];
+                currentPowerup = powerups[Math.floor(Math.random() * powerups.length)];
+            }
+            spawnFood();
         }
-
-        ctx.font = "14px sans-serif";
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.fillText(scheme.name, xBase - 10, yBase + boxHeight + 18);
-      });
-
-      // Difficulty display
-      const diffY = HEIGHT - 80;
-      ctx.font = "20px sans-serif";
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.fillText("Difficulty:", 40, diffY);
-
-      DIFFICULTIES.forEach((d, i) => {
-        const x = 160 + i * 130;
-        if (i === selectedDifficultyIndex) {
-          ctx.fillStyle = rgb(COLORS.YELLOW);
-        } else {
-          ctx.fillStyle = rgb(COLORS.WHITE);
+        
+        function getPowerupColor() {
+            switch (currentPowerup) {
+                case POWERUP.FOOD: return COLORS.RED;
+                case POWERUP.SPEED_UP: return COLORS.PURPLE;
+                case POWERUP.TELEPORT: return COLORS.LIGHT_GREEN;
+                case POWERUP.SLOW_DOWN: return COLORS.YELLOW;
+                case POWERUP.DOUBLE_GROWTH: return COLORS.BLUE;
+                default: return COLORS.RED;
+            }
         }
-        ctx.fillText(d.name, x, diffY);
-
-        ctx.font = "12px sans-serif";
-        ctx.fillStyle = rgb(COLORS.GRAY);
-        ctx.fillText(d.description, x - 20, diffY + 18);
-        ctx.font = "20px sans-serif";
-      });
-    }
-
-    function drawGame() {
-      clearCanvas();
-
-      // Grid
-      ctx.strokeStyle = rgb(COLORS.GRAY);
-      ctx.lineWidth = 1;
-      for (let x = 0; x < GRID_SIZE; x++) {
-        for (let y = 0; y < GRID_SIZE; y++) {
-          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        
+        function update() {
+            if (gameOver || inSelectionScreen) return;
+            
+            const now = Date.now() / 1000;
+            if (speedBoostEndTime > 0 && now >= speedBoostEndTime) {
+                currentSpeed = baseSpeed;
+                speedBoostEndTime = 0;
+            }
+            
+            direction = nextDirection;
+            
+            const head = { 
+                x: snake[0].x + direction.x, 
+                y: snake[0].y + direction.y 
+            };
+            
+            // Check boundaries
+            if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+                gameOver = true;
+                if (bgMusic && musicLoaded) bgMusic.pause();
+                infoElement.textContent = 'Game Over! Score: ' + score;
+                controlsElement.textContent = 'Press SPACE to restart';
+                return;
+            }
+            
+            // Check self collision
+            for (let segment of snake) {
+                if (segment.x === head.x && segment.y === head.y) {
+                    gameOver = true;
+                    if (bgMusic && musicLoaded) bgMusic.pause();
+                    infoElement.textContent = 'Game Over! Score: ' + score;
+                    controlsElement.textContent = 'Press SPACE to restart';
+                    return;
+                }
+            }
+            
+            snake.unshift(head);
+            
+            // Check food
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                
+                const currentTime = Date.now() / 1000;
+                
+                if (currentPowerup === POWERUP.SPEED_UP) {
+                    currentSpeed = baseSpeed + 2;
+                    speedBoostEndTime = currentTime + 5;
+                } else if (currentPowerup === POWERUP.SLOW_DOWN) {
+                    currentSpeed = Math.max(5, baseSpeed - 2);
+                    speedBoostEndTime = currentTime + 5;
+                } else if (currentPowerup === POWERUP.TELEPORT) {
+                    const newPos = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
+                    snake[0] = newPos;
+                } else if (currentPowerup === POWERUP.DOUBLE_GROWTH) {
+                    if (snake.length > 1) {
+                        const tail = snake[snake.length - 1];
+                        snake.push({ x: tail.x, y: tail.y });
+                    }
+                }
+                
+                spawnNewPowerup();
+            } else {
+                snake.pop();
+            }
         }
-      }
-
-      // Snake
-      const colorScheme = SNAKE_COLORS[selectedColorIndex];
-      snake.forEach((seg, i) => {
-        const isHead = i === 0;
-        ctx.fillStyle = isHead ? rgb(colorScheme.head) : rgb(colorScheme.body);
-        ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      });
-
-      // Powerup/food
-      if (powerupPos) {
-        ctx.fillStyle = getPowerupColor();
-        ctx.fillRect(
-          powerupPos.x * CELL_SIZE,
-          powerupPos.y * CELL_SIZE,
-          CELL_SIZE,
-          CELL_SIZE
-        );
-      }
-
-      // Score
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.font = "20px sans-serif";
-      ctx.fillText("Score: " + score, 10, HEIGHT - 25);
-
-      // Difficulty label
-      ctx.font = "16px sans-serif";
-      ctx.fillText(
-        "Mode: " + DIFFICULTIES[selectedDifficultyIndex].name,
-        150,
-        HEIGHT - 25
-      );
-
-      // Speed message
-      if (speedBoostEndTime > 0) {
-        const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
-        const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
-        ctx.fillStyle = rgb(color);
-        ctx.font = "18px sans-serif";
-        ctx.fillText(msg, WIDTH / 2 - 70, 22);
-      }
-
-      // Music status
-      if (musicLoaded) {
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.font = "14px sans-serif";
-        const text = bgMusic && !bgMusic.paused ? "Music: ON (M)" : "Music: OFF (M)";
-        ctx.fillText(text, WIDTH - 140, HEIGHT - 25);
-      }
-
-      // Game over overlay
-      if (gameOver) {
-        ctx.fillStyle = rgb(COLORS.RED);
-        ctx.font = "36px sans-serif";
-        ctx.fillText("GAME OVER!", WIDTH / 2 - 110, HEIGHT / 2 - 10);
-
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.font = "20px sans-serif";
-        ctx.fillText("Press SPACE to go back", WIDTH / 2 - 140, HEIGHT / 2 + 20);
-      }
-    }
-
-    function draw() {
-      if (inSelectionScreen) {
-        drawSelectionScreen();
-      } else {
-        drawGame();
-      }
-    }
-
-    // ==== MAIN LOOP ====
-    function loop(timestamp) {
-      if (!lastStepTime) lastStepTime = timestamp;
-
-      const deltaSec = (timestamp - lastStepTime) / 1000;
-      const stepInterval = 1 / currentSpeed;
-
-      if (!inSelectionScreen && !gameOver && deltaSec >= stepInterval) {
-        updateGame();
-        lastStepTime = timestamp;
-      }
-
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    requestAnimationFrame(loop);
-  </script>
+        
+        function drawSelectionScreen() {
+            ctx.fillStyle = COLORS.BLACK;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            
+            ctx.fillStyle = COLORS.WHITE;
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('SELECT YOUR SNAKE', WIDTH / 2, 60);
+            
+            ctx.font = '18px Arial';
+            ctx.fillStyle = COLORS.GRAY;
+            ctx.fillText('Use LEFT/RIGHT arrows to choose', WIDTH / 2, 100);
+            ctx.fillText('Press SPACE to start', WIDTH / 2, 130);
+            
+            // Draw snake previews in a grid
+            const startY = 180;
+            const boxSize = 40;
+            const spacing = 60;
+            
+            SNAKE_COLORS.forEach((colorScheme, i) => {
+                const col = i % 4;
+                const row = Math.floor(i / 4);
+                const xPos = WIDTH / 2 - 200 + col * 120;
+                const yPos = startY + row * spacing;
+                
+                // Draw snake preview
+                for (let j = 0; j < 3; j++) {
+                    ctx.fillStyle = j === 0 ? colorScheme.head : colorScheme.body;
+                    ctx.fillRect(xPos + j * 15, yPos, 12, boxSize);
+                }
+                
+                // Highlight selected
+                if (i === selectedColorIndex) {
+                    ctx.strokeStyle = COLORS.WHITE;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(xPos - 5, yPos - 5, 50, boxSize + 10);
+                }
+                
+                // Name
+                ctx.fillStyle = COLORS.WHITE;
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(colorScheme.name, xPos - 10, yPos + boxSize + 15);
+            });
+            
+            // Selected info
+            ctx.fillStyle = COLORS.WHITE;
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Selected: ' + SNAKE_COLORS[selectedColorIndex].name, WIDTH / 2, HEIGHT - 60);
+        }
+        
+        function drawGame() {
+            ctx.fillStyle = COLORS.BLACK;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            
+            // Grid
+            ctx.strokeStyle = COLORS.GRAY;
+            ctx.lineWidth = 1;
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                }
+            }
+            
+            // Snake
+            const colorScheme = SNAKE_COLORS[selectedColorIndex];
+            snake.forEach((seg, i) => {
+                ctx.fillStyle = i === 0 ? colorScheme.head : colorScheme.body;
+                ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+            
+            // Food
+            ctx.fillStyle = getPowerupColor();
+            ctx.fillRect(food.x * CELL_SIZE, food.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            
+            // Score
+            ctx.fillStyle = COLORS.WHITE;
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('Score: ' + score, 10, HEIGHT - 20);
+            
+            // Speed indicator
+            if (speedBoostEndTime > 0) {
+                const msg = currentSpeed > baseSpeed ? 'SPEED BOOST!' : 'SLOWED DOWN!';
+                const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
+                ctx.fillStyle = color;
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(msg, WIDTH / 2, 25);
+            }
+            
+            // Music status
+            if (musicLoaded) {
+                ctx.fillStyle = COLORS.WHITE;
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'right';
+                const text = bgMusic && !bgMusic.paused ? 'Music: ON (M)' : 'Music: OFF (M)';
+                ctx.fillText(text, WIDTH - 10, HEIGHT - 20);
+            }
+            
+            // Game over
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                
+                ctx.fillStyle = COLORS.RED;
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER!', WIDTH / 2, HEIGHT / 2 - 20);
+                
+                ctx.fillStyle = COLORS.WHITE;
+                ctx.font = '24px Arial';
+                ctx.fillText('Final Score: ' + score, WIDTH / 2, HEIGHT / 2 + 20);
+                ctx.font = '18px Arial';
+                ctx.fillText('Press SPACE to restart', WIDTH / 2, HEIGHT / 2 + 50);
+            }
+        }
+        
+        function draw() {
+            if (inSelectionScreen) {
+                drawSelectionScreen();
+            } else {
+                drawGame();
+            }
+        }
+        
+        function gameLoop() {
+            const now = Date.now();
+            const deltaTime = now - lastUpdateTime;
+            const updateInterval = 1000 / currentSpeed;
+            
+            if (!inSelectionScreen && !gameOver && deltaTime >= updateInterval) {
+                update();
+                lastUpdateTime = now;
+            }
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            if (inSelectionScreen) {
+                if (e.key === 'ArrowLeft') {
+                    selectedColorIndex = (selectedColorIndex - 1 + SNAKE_COLORS.length) % SNAKE_COLORS.length;
+                } else if (e.key === 'ArrowRight') {
+                    selectedColorIndex = (selectedColorIndex + 1) % SNAKE_COLORS.length;
+                } else if (e.key === ' ') {
+                    e.preventDefault();
+                    startGame();
+                }
+            } else {
+                if (e.key === 'ArrowUp' && direction.y === 0) {
+                    nextDirection = { x: 0, y: -1 };
+                } else if (e.key === 'ArrowDown' && direction.y === 0) {
+                    nextDirection = { x: 0, y: 1 };
+                } else if (e.key === 'ArrowLeft' && direction.x === 0) {
+                    nextDirection = { x: -1, y: 0 };
+                } else if (e.key === 'ArrowRight' && direction.x === 0) {
+                    nextDirection = { x: 1, y: 0 };
+                } else if (e.key === 'm' || e.key === 'M') {
+                    if (bgMusic && musicLoaded) {
+                        if (bgMusic.paused) {
+                            bgMusic.play().catch(() => {});
+                        } else {
+                            bgMusic.pause();
+                        }
+                    }
+                } else if (e.key === ' ' && gameOver) {
+                    e.preventDefault();
+                    inSelectionScreen = true;
+                    selectedColorIndex = 0;
+                    infoElement.textContent = 'Use arrow keys to navigate';
+                    controlsElement.textContent = 'Selection: LEFT/RIGHT arrows, SPACE to start';
+                }
+            }
+        });
+        
+        // Start game loop
+        gameLoop();
+    </script>
 </body>
 </html>
