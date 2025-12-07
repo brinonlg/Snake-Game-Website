@@ -184,6 +184,14 @@
       <div class="section-divider"></div>
 
       <div class="control-row">
+        <div class="key-box">C</div>
+        <div>
+          <div class="control-label-main">Continue</div>
+          <div class="control-label-sub">Reset snake to center, keep score</div>
+        </div>
+      </div>
+
+      <div class="control-row">
         <div class="key-box">M</div>
         <div>
           <div class="control-label-main">Toggle Music</div>
@@ -212,7 +220,7 @@
       <canvas id="game" width="510" height="560"></canvas>
       <div id="info">
         <div>Selection: A/D = color, W/S = difficulty, SPACE = start</div>
-        <div>In game: W/A/S/D to move, M = music, SPACE after Game Over = restart, R = new selection</div>
+        <div>In game: W/A/S/D to move, C = continue from center, M = music, SPACE after Game Over = restart, R = new selection</div>
       </div>
     </div>
 
@@ -488,9 +496,42 @@
       }
     }
 
+    // NEW: continue with same score, reset snake to center
+    function resetSnakeKeepScore() {
+      const startX = Math.floor(GRID_SIZE / 2);
+      const startY = Math.floor(GRID_SIZE / 2);
+      snake = [
+        { x: startX, y: startY },
+        { x: startX - 1, y: startY },
+        { x: startX - 2, y: startY }
+      ];
+
+      direction = Direction.RIGHT;
+      nextDirection = Direction.RIGHT;
+      gameOver = false;
+      inCountdown = false;
+      inSelectionScreen = false;
+
+      currentSpeed = baseSpeed;
+      speedBoostEndTime = 0;
+
+      currentPowerup = POWERUP_TYPES.FOOD;
+      spawnItem();
+
+      lastStepTime = performance.now();
+
+      if (bgMusic && musicLoaded && userInteracted) {
+        if (bgMusic.paused) {
+          bgMusic.play().catch(() => {});
+        }
+        bgMusic.volume = 0.5;
+      }
+    }
+
     function resetToSelectionScreen() {
       inSelectionScreen = true;
       gameOver = false;
+      inCountdown = false;
       if (bgMusic && musicLoaded) {
         bgMusic.pause();
       }
@@ -534,6 +575,10 @@
         toggleMusic();
       } else if (e.key === "r" || e.key === "R") {
         resetToSelectionScreen();
+      } else if (e.key === "c" || e.key === "C") {
+        // continue from center with same score
+        e.preventDefault();
+        resetSnakeKeepScore();
       } else if ((e.key === " " || e.code === "Space") && gameOver) {
         e.preventDefault();
         startCountdown();
@@ -790,8 +835,9 @@
         ctx.fillText("Final Score: " + score, WIDTH / 2, HEIGHT / 2 + 20);
         
         ctx.font = "18px sans-serif";
-        ctx.fillText("Press SPACE to play again", WIDTH / 2, HEIGHT / 2 + 55);
-        ctx.fillText("Press R for new selection", WIDTH / 2, HEIGHT / 2 + 80);
+        ctx.fillText("Press C to continue from center", WIDTH / 2, HEIGHT / 2 + 50);
+        ctx.fillText("Press SPACE to play again", WIDTH / 2, HEIGHT / 2 + 75);
+        ctx.fillText("Press R for new selection", WIDTH / 2, HEIGHT / 2 + 100);
       }
     }
 
