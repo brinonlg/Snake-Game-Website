@@ -385,6 +385,9 @@
     let countdownStartTime = 0;
     let countdownScale = 1;
 
+    // NEW: length to use when continuing from center
+    let continueSnakeLength = 3;
+
     // Music
     let bgMusic = null;
     let musicLoaded = false;
@@ -469,4 +472,417 @@
     }
     
     function startGame() {
-      const startX = Math.floor(GRID
+      const startX = Math.floor(GRID_SIZE / 2);
+      const startY = Math.floor(GRID_SIZE / 2);
+      snake = [
+        { x: startX, y: startY },
+        { x: startX - 1, y: startY },
+        { x: startX - 2, y: startY }
+      ];
+
+      direction = Direction.RIGHT;
+      nextDirection = Direction.RIGHT;
+      score = 0;
+      gameOver = false;
+      currentSpeed = baseSpeed;
+      speedBoostEndTime = 0;
+
+      // initial length for continue feature
+      continueSnakeLength = snake.length;
+
+      currentPowerup = POWERUP_TYPES.FOOD;
+      spawnItem();
+
+      inCountdown = false;
+      lastStepTime = performance.now();
+
+      if (bgMusic && musicLoaded && userInteracted) {
+        bgMusic.play().catch(() => {});
+        bgMusic.volume = 0.5;
+      }
+    }
+
+    // UPDATED: continue with same score AND same snake size
+    function resetSnakeKeepScore() {
+      // Use stored length from last live state
+      const length = Math.max(3, continueSnakeLength || 3);
+      const startX = Math.floor(GRID_SIZE / 2);
+      const startY = Math.floor(GRID_SIZE / 2);
+
+      snake = [];
+      for (let i = 0; i < length; i++) {
+        snake.push({ x: startX - i, y: startY });
+      }
+
+      direction = Direction.RIGHT;
+      nextDirection = Direction.RIGHT;
+      gameOver = false;
+      inCountdown = false;
+      inSelectionScreen = false;
+
+      currentSpeed = baseSpeed;
+      speedBoostEndTime = 0;
+
+      currentPowerup = POWERUP_TYPES.FOOD;
+      spawnItem();
+
+      lastStepTime = performance.now();
+
+      if (bgMusic && musicLoaded && userInteracted) {
+        if (bgMusic.paused) {
+          bgMusic.play().catch(() => {});
+        }
+        bgMusic.volume = 0.5;
+      }
+    }
+
+    function resetToSelectionScreen() {
+      inSelectionScreen = true;
+      gameOver = false;
+      inCountdown = false;
+      if (bgMusic && musicLoaded) {
+        bgMusic.pause();
+      }
+    }
+
+    // ==== INPUT ====
+    document.addEventListener("keydown", (e) => {
+      userInteracted = true;
+
+      // Selection screen controls (WASD)
+      if (inSelectionScreen) {
+        if (e.key === "a" || e.key === "A") {
+          selectedColorIndex =
+            (selectedColorIndex - 1 + SNAKE_COLORS.length) % SNAKE_COLORS.length;
+        } else if (e.key === "d" || e.key === "D") {
+          selectedColorIndex =
+            (selectedColorIndex + 1) % SNAKE_COLORS.length;
+        } else if (e.key === "w" || e.key === "W") {
+          selectedDifficultyIndex =
+            (selectedDifficultyIndex - 1 + DIFFICULTIES.length) % DIFFICULTIES.length;
+        } else if (e.key === "s" || e.key === "S") {
+          selectedDifficultyIndex =
+            (selectedDifficultyIndex + 1) % DIFFICULTIES.length;
+        } else if (e.key === " " || e.code === "Space") {
+          e.preventDefault();
+          startCountdown();
+        }
+        return;
+      }
+
+      // In-game controls (WASD)
+      if (e.key === "w" || e.key === "W") {
+        if (direction !== Direction.DOWN) nextDirection = Direction.UP;
+      } else if (e.key === "s" || e.key === "S") {
+        if (direction !== Direction.UP) nextDirection = Direction.DOWN;
+      } else if (e.key === "a" || e.key === "A") {
+        if (direction !== Direction.RIGHT) nextDirection = Direction.LEFT;
+      } else if (e.key === "d" || e.key === "D") {
+        if (direction !== Direction.LEFT) nextDirection = Direction.RIGHT;
+      } else if (e.key === "m" || e.key === "M") {
+        toggleMusic();
+      } else if (e.key === "r" || e.key === "R") {
+        resetToSelectionScreen();
+      } else if (e.key === "c" || e.key === "C") {
+        // continue from center with same size & score
+        e.preventDefault();
+        resetSnakeKeepScore();
+      } else if ((e.key === " " || e.code === "Space") && gameOver) {
+        e.preventDefault();
+        startCountdown();
+      }
+    });
+
+    // ==== UPDATE ====
+    function updateCountdown(timestamp) {
+      const elapsed = timestamp - countdownStartTime;
+      const numberDuration = 1000; // 1 second each
+      
+      const numberIndex = Math.floor(elapsed / numberDuration);
+      
+      if (numberIndex >= 3) {
+        startGame();
+        return;
+      }
+      
+      countdownNumber = 3 - numberIndex;
+      const progress = (elapsed % numberDuration) / numberDuration;
+      countdownScale = 3.0 - (progress * 2.0);
+    }
+    
+    function updateGame() {
+      if (gameOver || inSelectionScreen || inCountdown) return;
+
+      const nowSec = performance.now() / 1000;
+      if (speedBoostEndTime > 0 && nowSec >= speedBoostEndTime) {
+        currentSpeed = baseSpeed;
+        speedBoostEndTime = 0;
+      }
+
+      direction = nextDirection;
+
+      const head = snake[0];
+      const newHead = {
+        x: head.x + direction.x,
+        y: head.y + direction.y
+      };
+
+      // Walls
+      if (
+        newHead.x < 0 || newHead.x >= GRID_SIZE ||
+        newHead.y < 0 || newHead.y >= GRID_SIZE
+      ) {
+        gameOver = true;
+        if (bgMusic && musicLoaded) bgMusic.pause();
+        return;
+      }
+
+      // Self collision
+      if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
+        gameOver = true;
+        if (bgMusic && musicLoaded) bgMusic.pause();
+        return;
+      }
+
+      snake.unshift(newHead);
+
+      // Eat powerup?
+      if (powerupPos && newHead.x === powerupPos.x && newHead.y === powerupPos.y) {
+        score += 1;
+
+        if (currentPowerup === POWERUP_TYPES.FOOD) {
+          // just grow (no extra action needed)
+        } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
+          currentSpeed = baseSpeed + 2;
+          speedBoostEndTime = nowSec + 5;
+        } else if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) {
+          currentSpeed = Math.max(5, baseSpeed - 2);
+          speedBoostEndTime = nowSec + 5;
+        } else if (currentPowerup === POWERUP_TYPES.TELEPORT) {
+          const newPos = randomEmptyCell();
+          snake[0] = newPos;
+        } else if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) {
+          if (snake.length > 1) {
+            const tail = snake[snake.length - 1];
+            snake.push({ x: tail.x, y: tail.y });
+          }
+        }
+
+        spawnNewPowerup();
+      } else {
+        snake.pop();
+      }
+
+      // after a successful step, remember this length for the continue feature
+      continueSnakeLength = snake.length;
+    }
+
+    // ==== DRAW ====
+    function clearCanvas() {
+      ctx.fillStyle = rgb(COLORS.BLACK);
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+    
+    function drawCountdown() {
+      clearCanvas();
+      
+      // Grid faintly in background
+      ctx.strokeStyle = rgb(COLORS.GRAY);
+      ctx.lineWidth = 1;
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      }
+      
+      ctx.save();
+      ctx.translate(WIDTH / 2, (HEIGHT - 50) / 2);
+      ctx.scale(countdownScale, countdownScale);
+      
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.font = "bold 120px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(countdownNumber, 0, 0);
+      
+      ctx.restore();
+    }
+
+    function drawSelectionScreen() {
+      clearCanvas();
+
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.font = "bold 32px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("SELECT YOUR SNAKE", WIDTH / 2, 70);
+
+      ctx.font = "16px sans-serif";
+      ctx.fillStyle = "rgba(220,220,220,0.9)";
+      ctx.fillText("Use A/D keys to choose color", WIDTH / 2, 100);
+      ctx.fillText("Use W/S keys to choose difficulty", WIDTH / 2, 122);
+      ctx.fillText("Press SPACE to start", WIDTH / 2, 144);
+
+      const boxHeight = 40;
+      const spacingY = 70;
+      const perRow = 4;
+      const startY = 190;
+
+      SNAKE_COLORS.forEach((scheme, index) => {
+        const row = Math.floor(index / perRow);
+        const col = index % perRow;
+
+        const xBase = WIDTH / 2 - 220 + col * 130;
+        const yBase = startY + row * spacingY;
+
+        for (let i = 0; i < 3; i++) {
+          const rectX = xBase + i * 18;
+          const rectY = yBase;
+          const color = i === 0 ? scheme.head : scheme.body;
+          ctx.fillStyle = rgb(color);
+          ctx.fillRect(rectX, rectY, 16, boxHeight);
+        }
+
+        if (index === selectedColorIndex) {
+          ctx.strokeStyle = rgb(COLORS.WHITE);
+          ctx.lineWidth = 3;
+          ctx.strokeRect(xBase - 6, yBase - 6, 60, boxHeight + 12);
+        }
+
+        ctx.font = "13px sans-serif";
+        ctx.fillStyle = rgb(COLORS.WHITE);
+        ctx.textAlign = "left";
+        ctx.fillText(scheme.name, xBase - 10, yBase + boxHeight + 18);
+      });
+
+      const diffY = HEIGHT - 80;
+      ctx.font = "20px sans-serif";
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.textAlign = "center";
+      ctx.fillText("Difficulty:", WIDTH / 2, diffY - 30);
+
+      DIFFICULTIES.forEach((d, i) => {
+        const x = WIDTH / 2 - 120 + i * 120;
+        
+        if (i === selectedDifficultyIndex) {
+          ctx.fillStyle = rgb(d.color);
+          ctx.font = "bold 22px sans-serif";
+        } else {
+          ctx.fillStyle = "rgba(160,160,160,0.8)";
+          ctx.font = "20px sans-serif";
+        }
+        ctx.fillText(d.name, x, diffY);
+
+        ctx.font = "12px sans-serif";
+        ctx.fillStyle = "rgba(180,180,180,0.8)";
+        ctx.fillText(d.description, x, diffY + 18);
+      });
+    }
+
+    function drawGame() {
+      clearCanvas();
+
+      // Grid
+      ctx.strokeStyle = rgb(COLORS.GRAY);
+      ctx.lineWidth = 1;
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      }
+
+      const colorScheme = SNAKE_COLORS[selectedColorIndex];
+      snake.forEach((seg, i) => {
+        const isHead = i === 0;
+        ctx.fillStyle = isHead ? rgb(colorScheme.head) : rgb(colorScheme.body);
+        ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      });
+
+      if (powerupPos) {
+        ctx.fillStyle = getPowerupColor();
+        ctx.fillRect(
+          powerupPos.x * CELL_SIZE,
+          powerupPos.y * CELL_SIZE,
+          CELL_SIZE,
+          CELL_SIZE
+        );
+      }
+
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.font = "20px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("Score: " + score, 10, HEIGHT - 20);
+
+      ctx.font = "16px sans-serif";
+      ctx.fillText("Mode: " + DIFFICULTIES[selectedDifficultyIndex].name, 150, HEIGHT - 20);
+
+      if (speedBoostEndTime > 0) {
+        const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
+        const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
+        ctx.fillStyle = rgb(color);
+        ctx.font = "20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(msg, WIDTH / 2, 25);
+      }
+
+      if (musicLoaded) {
+        ctx.fillStyle = rgb(COLORS.WHITE);
+        ctx.font = "14px sans-serif";
+        ctx.textAlign = "right";
+        const text = bgMusic && !bgMusic.paused ? "Music: ON (M)" : "Music: OFF (M)";
+        ctx.fillText(text, WIDTH - 10, HEIGHT - 20);
+      }
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        ctx.fillStyle = rgb(COLORS.RED);
+        ctx.font = "bold 48px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER!", WIDTH / 2, HEIGHT / 2 - 20);
+
+        ctx.fillStyle = rgb(COLORS.WHITE);
+        ctx.font = "24px sans-serif";
+        ctx.fillText("Final Score: " + score, WIDTH / 2, HEIGHT / 2 + 20);
+        
+        ctx.font = "18px sans-serif";
+        ctx.fillText("Press C to continue from center", WIDTH / 2, HEIGHT / 2 + 50);
+        ctx.fillText("Press SPACE to play again", WIDTH / 2, HEIGHT / 2 + 75);
+        ctx.fillText("Press R for new selection", WIDTH / 2, HEIGHT / 2 + 100);
+      }
+    }
+
+    function draw() {
+      if (inSelectionScreen) {
+        drawSelectionScreen();
+      } else if (inCountdown) {
+        drawCountdown();
+      } else {
+        drawGame();
+      }
+    }
+
+    // ==== MAIN LOOP ====
+    function loop(timestamp) {
+      if (!lastStepTime) lastStepTime = timestamp;
+
+      if (inCountdown) {
+        updateCountdown(timestamp);
+      }
+
+      const deltaSec = (timestamp - lastStepTime) / 1000;
+      const stepInterval = 1 / currentSpeed;
+
+      if (!inSelectionScreen && !gameOver && !inCountdown && deltaSec >= stepInterval) {
+        updateGame();
+        lastStepTime = timestamp;
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
