@@ -231,7 +231,7 @@
       <div class="legend-item">
         <div class="legend-color" style="background: #FF0000;"></div>
         <div class="legend-text">
-          <div class="legend-title">Red - Food</div>
+          <div class="legend-title">Red - Apple</div>
           <div class="legend-desc">Grow by 1 segment</div>
         </div>
       </div>
@@ -273,7 +273,7 @@
       <h2 style="margin-top: 8px;">Difficulty</h2>
       <div style="font-size: 13px; line-height: 1.6; color: #333;">
         <div style="margin-bottom: 8px;">
-          <strong style="color: #4CAF50;">Easy:</strong> Only red food
+          <strong style="color: #4CAF50;">Easy:</strong> Only red apples
         </div>
         <div style="margin-bottom: 8px;">
           <strong style="color: #FFA500;">Medium:</strong> All except green
@@ -314,7 +314,7 @@
     const DIFFICULTIES = [
       {
         name: "Easy",
-        description: "Only red food",
+        description: "Only red apples",
         id: "EASY",
         color: [144, 238, 144]
       },
@@ -359,6 +359,54 @@
       return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
     }
 
+    // Rounded rectangle helper
+    function roundRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    // Draw an apple inside one grid cell
+    function drawAppleCell(cellX, cellY) {
+      const x = cellX * CELL_SIZE;
+      const y = cellY * CELL_SIZE;
+      const cx = x + CELL_SIZE / 2;
+      const cy = y + CELL_SIZE / 2 + 2;
+      const radius = CELL_SIZE * 0.35;
+
+      // Apple body
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff2b2b";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.stroke();
+
+      // Stem
+      ctx.beginPath();
+      ctx.strokeStyle = "#5c3b1a";
+      ctx.lineWidth = 2;
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx, cy - radius - 7);
+      ctx.stroke();
+
+      // Leaf
+      ctx.beginPath();
+      ctx.fillStyle = "#3abf3a";
+      ctx.ellipse(cx + 5, cy - radius - 4, 4, 7, -Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // ==== GAME STATE ====
     let inSelectionScreen = true;
     let selectedColorIndex = 0;
@@ -385,7 +433,7 @@
     let countdownStartTime = 0;
     let countdownScale = 1;
 
-    // NEW: length to use when continuing from center
+    // For continue feature
     let continueSnakeLength = 3;
 
     // Music
@@ -487,7 +535,6 @@
       currentSpeed = baseSpeed;
       speedBoostEndTime = 0;
 
-      // initial length for continue feature
       continueSnakeLength = snake.length;
 
       currentPowerup = POWERUP_TYPES.FOOD;
@@ -502,9 +549,8 @@
       }
     }
 
-    // UPDATED: continue with same score AND same snake size
+    // Continue with same length & score
     function resetSnakeKeepScore() {
-      // Use stored length from last live state
       const length = Math.max(3, continueSnakeLength || 3);
       const startX = Math.floor(GRID_SIZE / 2);
       const startY = Math.floor(GRID_SIZE / 2);
@@ -651,7 +697,7 @@
         score += 1;
 
         if (currentPowerup === POWERUP_TYPES.FOOD) {
-          // just grow (no extra action needed)
+          // just grow
         } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
           currentSpeed = baseSpeed + 2;
           speedBoostEndTime = nowSec + 5;
@@ -673,7 +719,7 @@
         snake.pop();
       }
 
-      // after a successful step, remember this length for the continue feature
+      // remember length for continue feature
       continueSnakeLength = snake.length;
     }
 
@@ -722,7 +768,7 @@
       ctx.fillText("Use W/S keys to choose difficulty", WIDTH / 2, 122);
       ctx.fillText("Press SPACE to start", WIDTH / 2, 144);
 
-      const boxHeight = 40;
+      const boxHeight = 34;
       const spacingY = 70;
       const perRow = 4;
       const startY = 190;
@@ -734,18 +780,46 @@
         const xBase = WIDTH / 2 - 220 + col * 130;
         const yBase = startY + row * spacingY;
 
-        for (let i = 0; i < 3; i++) {
-          const rectX = xBase + i * 18;
-          const rectY = yBase;
-          const color = i === 0 ? scheme.head : scheme.body;
-          ctx.fillStyle = rgb(color);
-          ctx.fillRect(rectX, rectY, 16, boxHeight);
+        // draw a mini snake (always facing right)
+        const segments = 5;
+        const segSpacing = 18;
+        for (let i = 0; i < segments; i++) {
+          const segX = xBase + i * segSpacing;
+          const segY = yBase;
+          const isHead = i === 0;
+
+          ctx.fillStyle = isHead ? rgb(scheme.head) : rgb(scheme.body);
+          roundRect(ctx, segX, segY, 16, boxHeight, 10);
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = "rgba(0,0,0,0.4)";
+          ctx.stroke();
+
+          if (isHead) {
+            // tiny eyes on the right side
+            const eyeRadius = 2;
+            const ex = segX + 14;
+            const ey1 = segY + 9;
+            const ey2 = segY + boxHeight - 9;
+
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(ex, ey1, eyeRadius, 0, Math.PI * 2);
+            ctx.arc(ex, ey2, eyeRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#000000";
+            ctx.beginPath();
+            ctx.arc(ex, ey1, 1, 0, Math.PI * 2);
+            ctx.arc(ex, ey2, 1, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
 
         if (index === selectedColorIndex) {
           ctx.strokeStyle = rgb(COLORS.WHITE);
           ctx.lineWidth = 3;
-          ctx.strokeRect(xBase - 6, yBase - 6, 60, boxHeight + 12);
+          ctx.strokeRect(xBase - 6, yBase - 8, segSpacing * segments - segSpacing + 28, boxHeight + 16);
         }
 
         ctx.font = "13px sans-serif";
@@ -778,6 +852,89 @@
       });
     }
 
+    // Draw snake face (eyes + tongue) based on current direction
+    function drawSnakeFace(headCell) {
+      const cellX = headCell.x * CELL_SIZE;
+      const cellY = headCell.y * CELL_SIZE;
+      const cx = cellX + CELL_SIZE / 2;
+      const cy = cellY + CELL_SIZE / 2;
+      const eyeR = 3;
+
+      let e1x, e1y, e2x, e2y, tx1, ty1, tx2, ty2, tx3, ty3;
+
+      if (direction === Direction.RIGHT) {
+        e1x = cellX + CELL_SIZE * 0.7;
+        e2x = e1x;
+        e1y = cellY + CELL_SIZE * 0.35;
+        e2y = cellY + CELL_SIZE * 0.65;
+
+        tx1 = cellX + CELL_SIZE;
+        ty1 = cy;
+        tx2 = tx1 + 6;
+        ty2 = cy - 3;
+        tx3 = tx1 + 6;
+        ty3 = cy + 3;
+      } else if (direction === Direction.LEFT) {
+        e1x = cellX + CELL_SIZE * 0.3;
+        e2x = e1x;
+        e1y = cellY + CELL_SIZE * 0.35;
+        e2y = cellY + CELL_SIZE * 0.65;
+
+        tx1 = cellX;
+        ty1 = cy;
+        tx2 = tx1 - 6;
+        ty2 = cy - 3;
+        tx3 = tx1 - 6;
+        ty3 = cy + 3;
+      } else if (direction === Direction.UP) {
+        e1y = cellY + CELL_SIZE * 0.3;
+        e2y = e1y;
+        e1x = cellX + CELL_SIZE * 0.35;
+        e2x = cellX + CELL_SIZE * 0.65;
+
+        tx1 = cx;
+        ty1 = cellY;
+        tx2 = cx - 3;
+        ty2 = ty1 - 6;
+        tx3 = cx + 3;
+        ty3 = ty1 - 6;
+      } else { // DOWN
+        e1y = cellY + CELL_SIZE * 0.7;
+        e2y = e1y;
+        e1x = cellX + CELL_SIZE * 0.35;
+        e2x = cellX + CELL_SIZE * 0.65;
+
+        tx1 = cx;
+        ty1 = cellY + CELL_SIZE;
+        tx2 = cx - 3;
+        ty2 = ty1 + 6;
+        tx3 = cx + 3;
+        ty3 = ty1 + 6;
+      }
+
+      // Eyes
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(e1x, e1y, eyeR, 0, Math.PI * 2);
+      ctx.arc(e2x, e2y, eyeR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(e1x, e1y, 1.8, 0, Math.PI * 2);
+      ctx.arc(e2x, e2y, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tongue
+      ctx.fillStyle = "#ff4d4d";
+      ctx.beginPath();
+      ctx.moveTo(tx1, ty1);
+      ctx.lineTo(tx2, ty2);
+      ctx.lineTo(tx3, ty3);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     function drawGame() {
       clearCanvas();
 
@@ -790,31 +947,61 @@
         }
       }
 
+      // Snake with rounded body and a head
       const colorScheme = SNAKE_COLORS[selectedColorIndex];
       snake.forEach((seg, i) => {
+        const px = seg.x * CELL_SIZE;
+        const py = seg.y * CELL_SIZE;
+        const inset = 3;
         const isHead = i === 0;
+
         ctx.fillStyle = isHead ? rgb(colorScheme.head) : rgb(colorScheme.body);
-        ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        roundRect(ctx, px + inset, py + inset, CELL_SIZE - inset * 2, CELL_SIZE - inset * 2, 10);
+        ctx.fill();
+        ctx.lineWidth = 1.7;
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.stroke();
       });
 
-      if (powerupPos) {
-        ctx.fillStyle = getPowerupColor();
-        ctx.fillRect(
-          powerupPos.x * CELL_SIZE,
-          powerupPos.y * CELL_SIZE,
-          CELL_SIZE,
-          CELL_SIZE
-        );
+      // Head details (eyes + tongue)
+      if (snake.length > 0) {
+        drawSnakeFace(snake[0]);
       }
 
+      // Powerup/food
+      if (powerupPos) {
+        if (currentPowerup === POWERUP_TYPES.FOOD) {
+          drawAppleCell(powerupPos.x, powerupPos.y);
+        } else {
+          ctx.fillStyle = getPowerupColor();
+          ctx.fillRect(
+            powerupPos.x * CELL_SIZE + 4,
+            powerupPos.y * CELL_SIZE + 4,
+            CELL_SIZE - 8,
+            CELL_SIZE - 8
+          );
+          ctx.strokeStyle = "rgba(0,0,0,0.5)";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(
+            powerupPos.x * CELL_SIZE + 4,
+            powerupPos.y * CELL_SIZE + 4,
+            CELL_SIZE - 8,
+            CELL_SIZE - 8
+          );
+        }
+      }
+
+      // Score
       ctx.fillStyle = rgb(COLORS.WHITE);
       ctx.font = "20px sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("Score: " + score, 10, HEIGHT - 20);
 
+      // Difficulty display
       ctx.font = "16px sans-serif";
       ctx.fillText("Mode: " + DIFFICULTIES[selectedDifficultyIndex].name, 150, HEIGHT - 20);
 
+      // Speed message
       if (speedBoostEndTime > 0) {
         const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
         const color = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
@@ -824,6 +1011,7 @@
         ctx.fillText(msg, WIDTH / 2, 25);
       }
 
+      // Music status
       if (musicLoaded) {
         ctx.fillStyle = rgb(COLORS.WHITE);
         ctx.font = "14px sans-serif";
@@ -832,6 +1020,7 @@
         ctx.fillText(text, WIDTH - 10, HEIGHT - 20);
       }
 
+      // Game over overlay
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
