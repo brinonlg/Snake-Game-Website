@@ -246,6 +246,12 @@
 
     let gameOver = false;
     let lastStepTime = 0;
+    
+    // Countdown state
+    let inCountdown = false;
+    let countdownNumber = 3;
+    let countdownStartTime = 0;
+    let countdownScale = 1;
 
     // Music
     let bgMusic = null;
@@ -325,6 +331,14 @@
     }
 
     // ==== GAME SETUP ====
+    function startCountdown() {
+      inSelectionScreen = false;
+      inCountdown = true;
+      countdownNumber = 3;
+      countdownStartTime = performance.now();
+      countdownScale = 1;
+    }
+    
     function startGame() {
       const startX = Math.floor(GRID_SIZE / 2);
       const startY = Math.floor(GRID_SIZE / 2);
@@ -344,7 +358,7 @@
       currentPowerup = POWERUP_TYPES.FOOD;
       spawnItem();
 
-      inSelectionScreen = false;
+      inCountdown = false;
       lastStepTime = performance.now();
 
       if (bgMusic && musicLoaded && userInteracted) {
@@ -381,7 +395,7 @@
             (selectedDifficultyIndex + 1) % DIFFICULTIES.length;
         } else if (e.key === " " || e.code === "Space") {
           e.preventDefault();
-          startGame();
+          startCountdown();
         }
         return;
       }
@@ -404,8 +418,28 @@
     });
 
     // ==== UPDATE ====
+    function updateCountdown(timestamp) {
+      const elapsed = timestamp - countdownStartTime;
+      const numberDuration = 1000; // Each number lasts 1 second
+      
+      // Calculate which number we're on
+      const numberIndex = Math.floor(elapsed / numberDuration);
+      
+      if (numberIndex >= 3) {
+        // Countdown finished, start game
+        startGame();
+        return;
+      }
+      
+      countdownNumber = 3 - numberIndex;
+      
+      // Calculate scale (shrink from 3.0 to 1.0 over 1 second)
+      const progress = (elapsed % numberDuration) / numberDuration;
+      countdownScale = 3.0 - (progress * 2.0); // Goes from 3.0 to 1.0
+    }
+    
     function updateGame() {
-      if (gameOver || inSelectionScreen) return;
+      if (gameOver || inSelectionScreen || inCountdown) return;
 
       const nowSec = performance.now() / 1000;
       if (speedBoostEndTime > 0 && nowSec >= speedBoostEndTime) {
@@ -472,6 +506,32 @@
     function clearCanvas() {
       ctx.fillStyle = rgb(COLORS.BLACK);
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+    
+    function drawCountdown() {
+      clearCanvas();
+      
+      // Draw the grid faintly in background
+      ctx.strokeStyle = rgb(COLORS.GRAY);
+      ctx.lineWidth = 1;
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      }
+      
+      // Draw countdown number with scaling effect
+      ctx.save();
+      ctx.translate(WIDTH / 2, (HEIGHT - 50) / 2);
+      ctx.scale(countdownScale, countdownScale);
+      
+      ctx.fillStyle = rgb(COLORS.WHITE);
+      ctx.font = "bold 120px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(countdownNumber, 0, 0);
+      
+      ctx.restore();
     }
 
     function drawSelectionScreen() {
@@ -628,6 +688,8 @@
     function draw() {
       if (inSelectionScreen) {
         drawSelectionScreen();
+      } else if (inCountdown) {
+        drawCountdown();
       } else {
         drawGame();
       }
@@ -637,10 +699,15 @@
     function loop(timestamp) {
       if (!lastStepTime) lastStepTime = timestamp;
 
+      // Update countdown if active
+      if (inCountdown) {
+        updateCountdown(timestamp);
+      }
+
       const deltaSec = (timestamp - lastStepTime) / 1000;
       const stepInterval = 1 / currentSpeed;
 
-      if (!inSelectionScreen && !gameOver && deltaSec >= stepInterval) {
+      if (!inSelectionScreen && !gameOver && !inCountdown && deltaSec >= stepInterval) {
         updateGame();
         lastStepTime = timestamp;
       }
