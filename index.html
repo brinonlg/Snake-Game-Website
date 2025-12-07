@@ -7,66 +7,169 @@
     * {
       box-sizing: border-box;
     }
+
     body {
       margin: 0;
       background: #000;
       color: #fff;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       display: flex;
-      align-items: center;
       justify-content: center;
-      height: 100vh;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px;
     }
+
+    #game-wrapper {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
     #game-container {
       text-align: center;
     }
+
     canvas {
       display: block;
       margin: 0 auto;
       border: 1px solid #444;
       background: #000;
     }
+
     #info {
       margin-top: 8px;
       font-size: 14px;
       color: #ccc;
+      max-width: 520px;
+    }
+
+    #side-panel {
+      min-width: 220px;
+      max-width: 260px;
+      font-size: 14px;
+    }
+
+    #key-panel {
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: #111;
+      display: none; /* hidden on selection screen */
+    }
+
+    #key-panel h2 {
+      font-size: 16px;
+      margin: 0 0 8px 0;
+      text-align: center;
+    }
+
+    .key-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .key-box {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      margin-right: 8px;
+      border: 1px solid #222;
+    }
+
+    .food-box      { background: #ff0000; }   /* red */
+    .speed-box     { background: #800080; }   /* purple */
+    .teleport-box  { background: #90ee90; }   /* light green */
+    .slow-box      { background: #ffff00; }   /* yellow */
+    .double-box    { background: #0000ff; }   /* blue */
+
+    #side-help {
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #111;
+    }
+
+    #side-help h3 {
+      font-size: 15px;
+      margin: 0 0 6px 0;
+      text-align: center;
+    }
+
+    #side-help ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    #side-help li {
+      margin-bottom: 4px;
     }
   </style>
 </head>
 <body>
-  <div id="game-container">
-    <!-- NOTE: width is wider than just the grid now: 510 (grid) + 220 (key panel) = 730 -->
-    <canvas id="game" width="730" height="560"></canvas>
-    <div id="info">
-      <div>Selection screen: LEFT/RIGHT to choose color, UP/DOWN to choose difficulty, SPACE to start.</div>
-      <div>In game: Arrow keys or WASD to move, SPACE after Game Over to return, M to toggle music.</div>
+  <div id="game-wrapper">
+    <div id="game-container">
+      <!-- 17 * 30 = 510; plus 50 for score area => 560 -->
+      <canvas id="game" width="510" height="560"></canvas>
+      <div id="info">
+        <div>On the selection screen: LEFT / RIGHT to choose snake color, UP / DOWN to choose difficulty, SPACE to start.</div>
+        <div>In game: Arrow Keys or WASD to move, M to toggle music, SPACE to return to the selection screen after Game Over.</div>
+      </div>
+    </div>
+
+    <div id="side-panel">
+      <div id="key-panel">
+        <h2>Power-Up Key</h2>
+        <div class="key-row">
+          <span class="key-box food-box"></span>
+          <span>Red – Food: grow + score.</span>
+        </div>
+        <div class="key-row">
+          <span class="key-box speed-box"></span>
+          <span>Purple – Speed Up: faster for a short time.</span>
+        </div>
+        <div class="key-row">
+          <span class="key-box slow-box"></span>
+          <span>Yellow – Slow Down: slower for a short time.</span>
+        </div>
+        <div class="key-row">
+          <span class="key-box teleport-box"></span>
+          <span>Light Green – Teleport: jump to a random safe cell.</span>
+        </div>
+        <div class="key-row">
+          <span class="key-box double-box"></span>
+          <span>Blue – Double Growth: extra length from the tail.</span>
+        </div>
+        <p style="margin-top:8px; font-size:12px; color:#aaa;">
+          Easy: only red food. Medium: all except green teleport. Hard: all power-ups.
+        </p>
+      </div>
+
+      <div id="side-help">
+        <h3>Difficulty Modes</h3>
+        <ul>
+          <li><b>Easy</b> – Only red food squares.</li>
+          <li><b>Medium</b> – All power-ups except green teleport.</li>
+          <li><b>Hard</b> – All power-ups, including green teleport.</li>
+        </ul>
+      </div>
     </div>
   </div>
 
   <script>
-    // ==== CONFIGURATION (similar to your Python constants) ====
-    const GRID_SIZE = 17;          // 17x17 grid
+    // ====== BASIC CONFIG (matches your original logic) ======
+    const GRID_SIZE = 17;
     const CELL_SIZE = 30;
-
-    // Game grid size (just the board)
-    const BOARD_WIDTH = GRID_SIZE * CELL_SIZE;       // 510
-    const BOARD_HEIGHT = GRID_SIZE * CELL_SIZE + 50; // +50 for score line
-
-    // Key panel width on the right
-    const KEY_PANEL_WIDTH = 220;
-
-    // Full canvas size (board + key panel)
-    const CANVAS_WIDTH = BOARD_WIDTH + KEY_PANEL_WIDTH; // 510 + 220 = 730
-    const CANVAS_HEIGHT = BOARD_HEIGHT;
+    const WIDTH = GRID_SIZE * CELL_SIZE;
+    const HEIGHT = GRID_SIZE * CELL_SIZE + 50;
 
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
 
-    // Make sure JS and <canvas> agree on size
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
+    const keyPanel = document.getElementById("key-panel");
 
-    // Directions (like your Direction Enum)
     const Direction = {
       UP:    { x:  0, y: -1 },
       DOWN:  { x:  0, y:  1 },
@@ -74,7 +177,6 @@
       RIGHT: { x:  1, y:  0 }
     };
 
-    // Power-up types
     const POWERUP_TYPES = {
       FOOD: "FOOD",
       SPEED_UP: "SPEED_UP",
@@ -82,10 +184,6 @@
       SLOW_DOWN: "SLOW_DOWN",
       DOUBLE_GROWTH: "DOUBLE_GROWTH"
     };
-
-    // Difficulty modes
-    const DIFFICULTIES = ["Easy", "Medium", "Hard"];
-    let selectedDifficultyIndex = 0; // 0=Easy,1=Medium,2=Hard
 
     // Snake color schemes (avatar choices)
     const SNAKE_COLORS = [
@@ -99,7 +197,6 @@
       { name: "Golden",       head: [255, 215, 0], body: [218, 165, 32] }
     ];
 
-    // Colors
     const COLORS = {
       BLACK: [0, 0, 0],
       WHITE: [255, 255, 255],
@@ -115,7 +212,14 @@
       return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
     }
 
-    // ==== GAME STATE ====
+    // ====== DIFFICULTY ======
+    const DIFFICULTY_NAMES = ["Easy", "Medium", "Hard"];
+    let difficultyIndex = 0;           // 0=Easy,1=Medium,2=Hard
+    function currentDifficultyName() {
+      return DIFFICULTY_NAMES[difficultyIndex];
+    }
+
+    // ====== GAME STATE ======
     let inSelectionScreen = true;
     let selectedColorIndex = 0;
 
@@ -135,10 +239,11 @@
 
     let lastStepTime = 0;
 
-    // Music
+    // ====== MUSIC ======
     let bgMusic = null;
     let musicLoaded = false;
     let userInteracted = false;
+
     try {
       bgMusic = new Audio("background_music.mp3");
       bgMusic.loop = true;
@@ -156,7 +261,7 @@
       }
     }
 
-    // ==== RANDOM HELPERS ====
+    // ====== HELPERS ======
     function randomEmptyCell() {
       while (true) {
         const x = Math.floor(Math.random() * GRID_SIZE);
@@ -171,60 +276,41 @@
       powerupPos = randomEmptyCell();
     }
 
-    function allowedPowerupsForDifficulty() {
-      const diff = DIFFICULTIES[selectedDifficultyIndex];
-      if (diff === "Easy") {
-        // Only FOOD (red)
-        return [POWERUP_TYPES.FOOD];
-      } else if (diff === "Medium") {
-        // Everything except the green TELEPORT
-        return [
-          POWERUP_TYPES.FOOD,
-          POWERUP_TYPES.SPEED_UP,
-          POWERUP_TYPES.SLOW_DOWN,
-          POWERUP_TYPES.DOUBLE_GROWTH
-        ];
-      } else {
-        // Hard: all powerups including green TELEPORT
-        return [
-          POWERUP_TYPES.FOOD,
-          POWERUP_TYPES.SPEED_UP,
-          POWERUP_TYPES.TELEPORT,
-          POWERUP_TYPES.SLOW_DOWN,
-          POWERUP_TYPES.DOUBLE_GROWTH
-        ];
-      }
-    }
-
     function spawnNewPowerup() {
-      const allowed = allowedPowerupsForDifficulty();
-      const r = Math.random();
+      // Easy: only red (FOOD)
+      // Medium: FOOD + SPEED_UP + SLOW_DOWN + DOUBLE_GROWTH (no TELEPORT)
+      // Hard: all power-ups including TELEPORT
+      let choices = [POWERUP_TYPES.FOOD];
 
-      if (allowed.length === 1 && allowed[0] === POWERUP_TYPES.FOOD) {
-        currentPowerup = POWERUP_TYPES.FOOD;
-      } else {
-        // 30% chance: FOOD, 70%: other allowed
-        if (r < 0.3 && allowed.includes(POWERUP_TYPES.FOOD)) {
-          currentPowerup = POWERUP_TYPES.FOOD;
-        } else {
-          const possibleOthers = allowed.filter(t => t !== POWERUP_TYPES.FOOD);
-          currentPowerup =
-            possibleOthers[Math.floor(Math.random() * possibleOthers.length)];
-        }
+      const diffName = currentDifficultyName();
+      if (diffName === "Medium" || diffName === "Hard") {
+        choices.push(
+          POWERUP_TYPES.SPEED_UP,
+          POWERUP_TYPES.SLOW_DOWN,
+          POWERUP_TYPES.DOUBLE_GROWTH
+        );
       }
+      if (diffName === "Hard") {
+        choices.push(POWERUP_TYPES.TELEPORT);
+      }
+
+      const idx = Math.floor(Math.random() * choices.length);
+      currentPowerup = choices[idx];
       spawnItem();
     }
 
-    function getPowerupColor(type) {
-      if (type === POWERUP_TYPES.FOOD) return rgb(COLORS.RED);
-      if (type === POWERUP_TYPES.SPEED_UP) return rgb(COLORS.PURPLE);
-      if (type === POWERUP_TYPES.TELEPORT) return rgb(COLORS.LIGHT_GREEN);
-      if (type === POWERUP_TYPES.SLOW_DOWN) return rgb(COLORS.YELLOW);
-      if (type === POWERUP_TYPES.DOUBLE_GROWTH) return rgb(COLORS.BLUE);
-      return rgb(COLORS.RED);
+    function getPowerupColor() {
+      switch (currentPowerup) {
+        case POWERUP_TYPES.FOOD:          return rgb(COLORS.RED);
+        case POWERUP_TYPES.SPEED_UP:      return rgb(COLORS.PURPLE);
+        case POWERUP_TYPES.TELEPORT:      return rgb(COLORS.LIGHT_GREEN);
+        case POWERUP_TYPES.SLOW_DOWN:     return rgb(COLORS.YELLOW);
+        case POWERUP_TYPES.DOUBLE_GROWTH: return rgb(COLORS.BLUE);
+        default:                          return rgb(COLORS.RED);
+      }
     }
 
-    // ==== GAME SETUP ====
+    // ====== GAME SETUP / RESET ======
     function startGame() {
       const startX = Math.floor(GRID_SIZE / 2);
       const startY = Math.floor(GRID_SIZE / 2);
@@ -242,372 +328,59 @@
       speedBoostEndTime = 0;
 
       currentPowerup = POWERUP_TYPES.FOOD;
-      spawnItem(); // first item is always food
-
+      spawnItem(); // first item is always FOOD
       inSelectionScreen = false;
+
       lastStepTime = performance.now();
 
+      // show key panel only while playing
+      keyPanel.style.display = "block";
+
       if (bgMusic && musicLoaded && userInteracted) {
-        bgMusic.play().catch(() => {});
         bgMusic.volume = 0.5;
+        bgMusic.play().catch(() => {});
       }
     }
 
     function resetToSelectionScreen() {
       inSelectionScreen = true;
       gameOver = false;
+      // hide key panel on selection screen
+      keyPanel.style.display = "none";
+      if (bgMusic && musicLoaded) {
+        bgMusic.pause();
+      }
     }
 
-    // ==== INPUT HANDLING ====
+    // ====== INPUT ======
     document.addEventListener("keydown", (e) => {
       userInteracted = true;
 
-      // SELECTION SCREEN INPUT
+      // Selection screen controls
       if (inSelectionScreen) {
         if (e.key === "ArrowLeft") {
           selectedColorIndex =
             (selectedColorIndex - 1 + SNAKE_COLORS.length) % SNAKE_COLORS.length;
         } else if (e.key === "ArrowRight") {
-          selectedColorIndex = (selectedColorIndex + 1) % SNAKE_COLORS.length;
+          selectedColorIndex =
+            (selectedColorIndex + 1) % SNAKE_COLORS.length;
         } else if (e.key === "ArrowUp") {
-          selectedDifficultyIndex =
-            (selectedDifficultyIndex - 1 + DIFFICULTIES.length) % DIFFICULTIES.length;
+          difficultyIndex =
+            (difficultyIndex - 1 + DIFFICULTY_NAMES.length) % DIFFICULTY_NAMES.length;
         } else if (e.key === "ArrowDown") {
-          selectedDifficultyIndex =
-            (selectedDifficultyIndex + 1) % DIFFICULTIES.length;
+          difficultyIndex =
+            (difficultyIndex + 1) % DIFFICULTY_NAMES.length;
         } else if (e.key === " " || e.code === "Space") {
           startGame();
         }
         return;
       }
 
-      // IN-GAME INPUT
+      // In-game controls
       if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
         if (direction !== Direction.DOWN) nextDirection = Direction.UP;
       } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
         if (direction !== Direction.UP) nextDirection = Direction.DOWN;
       } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
         if (direction !== Direction.RIGHT) nextDirection = Direction.LEFT;
-      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-        if (direction !== Direction.LEFT) nextDirection = Direction.RIGHT;
-      } else if (e.key === "m" || e.key === "M") {
-        toggleMusic();
-      } else if ((e.key === " " || e.code === "Space") && gameOver) {
-        resetToSelectionScreen();
-      }
-    });
-
-    // ==== GAME UPDATE ====
-    function updateGame() {
-      if (gameOver || inSelectionScreen) return;
-
-      const nowSec = performance.now() / 1000;
-      if (speedBoostEndTime > 0 && nowSec >= speedBoostEndTime) {
-        currentSpeed = baseSpeed;
-        speedBoostEndTime = 0;
-      }
-
-      direction = nextDirection;
-
-      const head = snake[0];
-      const newHead = {
-        x: head.x + direction.x,
-        y: head.y + direction.y
-      };
-
-      // Boundary collision
-      if (
-        newHead.x < 0 || newHead.x >= GRID_SIZE ||
-        newHead.y < 0 || newHead.y >= GRID_SIZE
-      ) {
-        gameOver = true;
-        if (bgMusic && musicLoaded) bgMusic.pause();
-        return;
-      }
-
-      // Self collision
-      if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
-        gameOver = true;
-        if (bgMusic && musicLoaded) bgMusic.pause();
-        return;
-      }
-
-      // Move snake
-      snake.unshift(newHead);
-
-      // Item eaten?
-      if (powerupPos && newHead.x === powerupPos.x && newHead.y === powerupPos.y) {
-        score += 1;
-
-        // Apply power-up effects
-        if (currentPowerup === POWERUP_TYPES.FOOD) {
-          // just grow (do nothing special)
-        } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
-          currentSpeed = baseSpeed + 2;
-          speedBoostEndTime = nowSec + 5;
-        } else if (currentPowerup === POWERUP_TYPES.TELEPORT) {
-          const newPos = randomEmptyCell();
-          snake[0] = newPos;
-        } else if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) {
-          currentSpeed = Math.max(5, baseSpeed - 2);
-          speedBoostEndTime = nowSec + 5;
-        } else if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) {
-          if (snake.length > 1) {
-            const tail = snake[snake.length - 1];
-            snake.push({ x: tail.x, y: tail.y });
-          }
-        }
-
-        spawnNewPowerup();
-      } else {
-        // Did not eat: remove tail
-        snake.pop();
-      }
-    }
-
-    // ==== DRAWING ====
-    function clearCanvas() {
-      ctx.fillStyle = rgb(COLORS.BLACK);
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    }
-
-    function drawSelectionScreen() {
-      clearCanvas();
-
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.font = "32px sans-serif";
-      ctx.fillText("SELECT YOUR SNAKE", BOARD_WIDTH / 2 - 180, 60);
-
-      ctx.font = "18px sans-serif";
-      ctx.fillStyle = rgb(COLORS.GRAY);
-      ctx.fillText("LEFT/RIGHT: Color", BOARD_WIDTH / 2 - 110, 90);
-      ctx.fillText("UP/DOWN: Difficulty", BOARD_WIDTH / 2 - 120, 115);
-      ctx.fillText("SPACE: Start", BOARD_WIDTH / 2 - 70, 140);
-
-      const boxHeight = 40;
-      const spacingY = 70;
-      const perRow = 4;
-      const startY = 190;
-
-      // Color choices
-      SNAKE_COLORS.forEach((scheme, index) => {
-        const row = Math.floor(index / perRow);
-        const col = index % perRow;
-
-        const xBase = BOARD_WIDTH / 2 - 220 + col * 130;
-        const yBase = startY + row * spacingY;
-
-        // Draw 3-segment preview
-        for (let i = 0; i < 3; i++) {
-          const rectX = xBase + i * 18;
-          const rectY = yBase;
-          const color = i === 0 ? scheme.head : scheme.body;
-          ctx.fillStyle = rgb(color);
-          ctx.fillRect(rectX, rectY, 16, boxHeight);
-        }
-
-        // Selection border
-        if (index === selectedColorIndex) {
-          ctx.strokeStyle = rgb(COLORS.White);
-          ctx.lineWidth = 2;
-          ctx.strokeRect(xBase - 6, yBase - 6, 60, boxHeight + 12);
-        }
-
-        // Name text
-        ctx.font = "14px sans-serif";
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.fillText(scheme.name, xBase - 10, yBase + boxHeight + 18);
-      });
-
-      // Difficulty display at bottom
-      ctx.font = "20px sans-serif";
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      const diffName = DIFFICULTIES[selectedDifficultyIndex];
-      let diffDesc = "";
-      if (diffName === "Easy") {
-        diffDesc = "Only red FOOD squares.";
-      } else if (diffName === "Medium") {
-        diffDesc = "All power-ups except green TELEPORT.";
-      } else {
-        diffDesc = "All power-ups including green TELEPORT.";
-      }
-
-      ctx.fillText("Difficulty: " + diffName, 20, CANVAS_HEIGHT - 60);
-      ctx.font = "16px sans-serif";
-      ctx.fillText(diffDesc, 20, CANVAS_HEIGHT - 35);
-    }
-
-    function drawKeyPanel() {
-      // Draw a vertical panel on the right side of the canvas
-      const panelX = BOARD_WIDTH;      // starts right after the board
-      const panelY = 0;
-      const panelW = KEY_PANEL_WIDTH;
-      const panelH = CANVAS_HEIGHT;
-
-      // Panel background
-      ctx.fillStyle = "rgba(20, 20, 20, 1)";
-      ctx.fillRect(panelX, panelY, panelW, panelH);
-
-      // Title
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.font = "18px sans-serif";
-      ctx.fillText("POWER-UP KEY", panelX + 20, 30);
-
-      ctx.font = "14px sans-serif";
-
-      // One row helper
-      let rowY = 60;
-      const rowGap = 30;
-
-      function drawKeyRow(colorArr, label, desc) {
-        ctx.fillStyle = rgb(colorArr);
-        ctx.fillRect(panelX + 20, rowY - 14, 20, 20);
-
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.fillText(label, panelX + 50, rowY);
-        ctx.fillStyle = rgb(COLORS.GRAY);
-        ctx.fillText(desc, panelX + 50, rowY + 14);
-
-        rowY += rowGap;
-      }
-
-      // FOOD (red) — always relevant
-      drawKeyRow(
-        COLORS.RED,
-        "Red - Food",
-        "Grow +1 length and gain 1 point."
-      );
-
-      // SPEED_UP (purple)
-      drawKeyRow(
-        COLORS.PURPLE,
-        "Purple - Speed Up",
-        "Move faster for a short time."
-      );
-
-      // TELEPORT (light green)
-      drawKeyRow(
-        COLORS.LIGHT_GREEN,
-        "Light Green - Teleport",
-        "Instantly teleport to a random empty cell."
-      );
-
-      // SLOW_DOWN (yellow)
-      drawKeyRow(
-        COLORS.YELLOW,
-        "Yellow - Slow Down",
-        "Move slower for a short time."
-      );
-
-      // DOUBLE_GROWTH (blue)
-      drawKeyRow(
-        COLORS.BLUE,
-        "Blue - Double Growth",
-        "Grow an extra segment when eaten."
-      );
-    }
-
-    function drawGame() {
-      clearCanvas();
-
-      // --- Draw the board (left side) ---
-      // Background for board
-      ctx.fillStyle = rgb(COLORS.BLACK);
-      ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-
-      // Grid
-      ctx.strokeStyle = rgb(COLORS.GRAY);
-      ctx.lineWidth = 1;
-      for (let x = 0; x < GRID_SIZE; x++) {
-        for (let y = 0; y < GRID_SIZE; y++) {
-          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-      }
-
-      // Snake with selected colors
-      const colorScheme = SNAKE_COLORS[selectedColorIndex];
-      snake.forEach((seg, i) => {
-        const isHead = i === 0;
-        ctx.fillStyle = isHead ? rgb(colorScheme.head) : rgb(colorScheme.body);
-        ctx.fillRect(seg.x * CELL_SIZE, seg.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      });
-
-      // Power-up / food
-      if (powerupPos) {
-        ctx.fillStyle = getPowerupColor(currentPowerup);
-        ctx.fillRect(
-          powerupPos.x * CELL_SIZE,
-          powerupPos.y * CELL_SIZE,
-          CELL_SIZE,
-          CELL_SIZE
-        );
-      }
-
-      // Score at bottom of board
-      ctx.fillStyle = rgb(COLORS.WHITE);
-      ctx.font = "20px sans-serif";
-      ctx.fillText("Score: " + score, 10, BOARD_HEIGHT - 20);
-
-      // Speed indicator
-      if (speedBoostEndTime > 0) {
-        const msg = currentSpeed > baseSpeed ? "SPEED BOOST!" : "SLOWED DOWN!";
-        const clr = currentSpeed > baseSpeed ? COLORS.PURPLE : COLORS.YELLOW;
-        ctx.fillStyle = rgb(clr);
-        ctx.font = "18px sans-serif";
-        ctx.fillText(msg, BOARD_WIDTH / 2 - 70, 22);
-      }
-
-      // Music status
-      if (musicLoaded) {
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.font = "14px sans-serif";
-        const text = bgMusic && !bgMusic.paused ? "Music: ON (M)" : "Music: OFF (M)";
-        ctx.fillText(text, BOARD_WIDTH - 140, BOARD_HEIGHT - 20);
-      }
-
-      // --- Draw the key panel on the right ---
-      drawKeyPanel();
-
-      // Game Over overlay on top of board only
-      if (gameOver) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-
-        ctx.fillStyle = rgb(COLORS.RED);
-        ctx.font = "36px sans-serif";
-        ctx.fillText("GAME OVER!", BOARD_WIDTH / 2 - 110, BOARD_HEIGHT / 2 - 10);
-
-        ctx.fillStyle = rgb(COLORS.WHITE);
-        ctx.font = "20px sans-serif";
-        ctx.fillText("Press SPACE to go back", BOARD_WIDTH / 2 - 140, BOARD_HEIGHT / 2 + 20);
-      }
-    }
-
-    function draw() {
-      if (inSelectionScreen) {
-        drawSelectionScreen();   // NO key here
-      } else {
-        drawGame();              // Key only appears while playing
-      }
-    }
-
-    // ==== MAIN LOOP ====
-    function loop(timestamp) {
-      if (!lastStepTime) lastStepTime = timestamp;
-
-      const deltaSec = (timestamp - lastStepTime) / 1000;
-      const stepInterval = 1 / currentSpeed;
-
-      if (!inSelectionScreen && !gameOver && deltaSec >= stepInterval) {
-        updateGame();
-        lastStepTime = timestamp;
-      }
-
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    requestAnimationFrame(loop);
-  </script>
-</body>
-</html>
+      } else if (e.key === "ArrowRight" || e.key === "d" ||
