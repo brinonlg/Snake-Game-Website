@@ -78,12 +78,18 @@
       font-size: 13px;
     }
 
-    .legend-color {
-      width: 20px;
-      height: 20px;
+    .legend-apple {
+      width: 22px;
+      height: 22px;
       margin-right: 10px;
-      border: 1px solid #666;
       flex-shrink: 0;
+      position: relative;
+    }
+
+    .legend-apple-body {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
     }
 
     .legend-text {
@@ -226,44 +232,54 @@
 
     <!-- RIGHT: power-up legend -->
     <div id="legend" class="side-card">
-      <h2>Power-Ups</h2>
+      <h2>Power-Up Apples</h2>
 
       <div class="legend-item">
-        <div class="legend-color" style="background: #FF0000;"></div>
+        <div class="legend-apple">
+          <div class="legend-apple-body" style="background:#FF0000;"></div>
+        </div>
         <div class="legend-text">
-          <div class="legend-title">Red - Apple</div>
+          <div class="legend-title">Red Apple - Normal Food</div>
           <div class="legend-desc">Grow by 1 segment</div>
         </div>
       </div>
 
       <div class="legend-item">
-        <div class="legend-color" style="background: #800080;"></div>
+        <div class="legend-apple">
+          <div class="legend-apple-body" style="background:#800080;"></div>
+        </div>
         <div class="legend-text">
-          <div class="legend-title">Purple - Speed Up</div>
+          <div class="legend-title">Purple Apple - Speed Up</div>
           <div class="legend-desc">+0.2 speed for 5 sec</div>
         </div>
       </div>
 
       <div class="legend-item">
-        <div class="legend-color" style="background: #90EE90;"></div>
+        <div class="legend-apple">
+          <div class="legend-apple-body" style="background:#90EE90;"></div>
+        </div>
         <div class="legend-text">
-          <div class="legend-title">Green - Teleport</div>
+          <div class="legend-title">Green Apple - Teleport</div>
           <div class="legend-desc">Random teleport</div>
         </div>
       </div>
 
       <div class="legend-item">
-        <div class="legend-color" style="background: #FFFF00;"></div>
+        <div class="legend-apple">
+          <div class="legend-apple-body" style="background:#FFFF00;"></div>
+        </div>
         <div class="legend-text">
-          <div class="legend-title">Yellow - Slow Down</div>
+          <div class="legend-title">Yellow Apple - Slow Down</div>
           <div class="legend-desc">-0.2 speed for 5 sec</div>
         </div>
       </div>
 
       <div class="legend-item">
-        <div class="legend-color" style="background: #0000FF;"></div>
+        <div class="legend-apple">
+          <div class="legend-apple-body" style="background:#0000FF;"></div>
+        </div>
         <div class="legend-text">
-          <div class="legend-title">Blue - Double Growth</div>
+          <div class="legend-title">Blue Apple - Double Growth</div>
           <div class="legend-desc">Grow by 2 segments</div>
         </div>
       </div>
@@ -279,7 +295,7 @@
           <strong style="color: #FFA500;">Medium:</strong> All except green
         </div>
         <div style="margin-bottom: 2px;">
-          <strong style="color: #F44336;">Hard:</strong> All power-ups
+          <strong style="color: #F44336;">Hard:</strong> All power-up apples
         </div>
       </div>
     </div>
@@ -326,7 +342,7 @@
       },
       {
         name: "Hard",
-        description: "All power-ups",
+        description: "All power-up apples",
         id: "HARD",
         color: [255, 102, 102]
       }
@@ -453,16 +469,16 @@
       spawnItem();
     }
 
-    function getPowerupColor() {
-      if (currentPowerup === POWERUP_TYPES.FOOD) return rgb(COLORS.RED);
-      if (currentPowerup === POWERUP_TYPES.SPEED_UP) return rgb(COLORS.PURPLE);
-      if (currentPowerup === POWERUP_TYPES.TELEPORT) return rgb(COLORS.LIGHT_GREEN);
-      if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) return rgb(COLORS.YELLOW);
-      if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) return rgb(COLORS.BLUE);
-      return rgb(COLORS.RED);
+    function getPowerupColorArray() {
+      if (currentPowerup === POWERUP_TYPES.FOOD) return COLORS.RED;
+      if (currentPowerup === POWERUP_TYPES.SPEED_UP) return COLORS.PURPLE;
+      if (currentPowerup === POWERUP_TYPES.TELEPORT) return COLORS.LIGHT_GREEN;
+      if (currentPowerup === POWERUP_TYPES.SLOW_DOWN) return COLORS.YELLOW;
+      if (currentPowerup === POWERUP_TYPES.DOUBLE_GROWTH) return COLORS.BLUE;
+      return COLORS.RED;
     }
 
-    // --- Drawing helpers for snake & apple ---
+    // --- Drawing helpers for snake & apples ---
 
     function drawSnakeSegmentGrid(x, y, color) {
       const cx = x * CELL_SIZE + CELL_SIZE / 2;
@@ -486,24 +502,21 @@
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Eyes (simple, white + black pupils)
+      // Eyes
       const eyeOffsetX = CELL_SIZE * 0.18;
       const eyeOffsetY = CELL_SIZE * -0.12;
       const eyeRadius = CELL_SIZE * 0.09;
       const pupilRadius = CELL_SIZE * 0.05;
 
       ctx.fillStyle = "white";
-      // Left eye
       ctx.beginPath();
       ctx.arc(cx - eyeOffsetX, cy + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
       ctx.fill();
-      // Right eye
       ctx.beginPath();
       ctx.arc(cx + eyeOffsetX, cy + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = "black";
-      // Pupils
       ctx.beginPath();
       ctx.arc(cx - eyeOffsetX, cy + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
       ctx.fill();
@@ -512,13 +525,15 @@
       ctx.fill();
     }
 
-    function drawAppleGrid(gridX, gridY) {
+    function drawAppleGrid(gridX, gridY, colorArray) {
       const cx = gridX * CELL_SIZE + CELL_SIZE / 2;
       const cy = gridY * CELL_SIZE + CELL_SIZE / 2;
       const radius = CELL_SIZE * 0.4;
 
+      const fillColor = rgb(colorArray);
+
       // Apple body
-      ctx.fillStyle = "#ff1a1a";
+      ctx.fillStyle = fillColor;
       ctx.beginPath();
       ctx.arc(cx - radius * 0.25, cy, radius * 0.9, Math.PI * 0.2, Math.PI * 1.8);
       ctx.arc(cx + radius * 0.25, cy, radius * 0.9, Math.PI * 0.8, Math.PI * 2.2);
@@ -734,7 +749,7 @@
         score += 1;
 
         if (currentPowerup === POWERUP_TYPES.FOOD) {
-          // normal apple: just grow
+          // just grow
         } else if (currentPowerup === POWERUP_TYPES.SPEED_UP) {
           currentSpeed = baseSpeed + 2;
           speedBoostEndTime = nowSec + 5;
@@ -818,7 +833,7 @@
         const yBase = startY + row * spacingY;
         const centerY = yBase + 20;
 
-        // tiny snake preview: 3 segments
+        // tiny snake preview: 3 round segments
         for (let i = 0; i < 3; i++) {
           const cx = xBase + i * 18;
           const cy = centerY;
@@ -886,19 +901,10 @@
         }
       });
 
-      // Powerup / food (apple)
+      // Apples (all powerups rendered as apples with different colors)
       if (powerupPos) {
-        if (currentPowerup === POWERUP_TYPES.FOOD) {
-          drawAppleGrid(powerupPos.x, powerupPos.y);
-        } else {
-          ctx.fillStyle = getPowerupColor();
-          ctx.fillRect(
-            powerupPos.x * CELL_SIZE + 4,
-            powerupPos.y * CELL_SIZE + 4,
-            CELL_SIZE - 8,
-            CELL_SIZE - 8
-          );
-        }
+        const appleColor = getPowerupColorArray();
+        drawAppleGrid(powerupPos.x, powerupPos.y, appleColor);
       }
 
       ctx.fillStyle = rgb(COLORS.WHITE);
